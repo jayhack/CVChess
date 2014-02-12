@@ -128,34 +128,99 @@ def world_to_image_coords (H, pw):
 if __name__ == "__main__":
 
 	#==========[ Step 1: load image/mark the points	]==========
-	image = Image.open ('../data/basic_board.jpg')
+	image = Image.open ('../data/micahboard/1.jpg')
 
-	image_points =  np.matrix(	[ 	
-									[228, 107, 1],			# top left		
-									[228, 131.4, 1],		# bottom left
-							 		[274.5, 107, 1],		# top right
-									[275.5, 130.3, 1],		# bottom right
-									[230, 84, 1],			# top top left
-									[273, 84, 1],			# top top right
-								])
+	board_points = np.matrix([	
+								# (3, 0)
+								[3, 0, 1],
+								[4, 0, 1],
+								[4, 1, 1],
+								[3, 1, 1],
 
-	world_points = 	np.matrix ( [
-									[4, 4, 1],
-									[4, 5, 1],
-									[5, 4, 1],
-									[5, 5, 1],
-									[4, 3, 1],
-									[5, 3, 1]
-								])
-	world_points 
+								# (3, 3)
+								# [3, 3, 1],
+								# [4, 3, 1],
+								# [4, 4, 1],
+								# [3, 4, 1],
+
+								# [4, 5, 1],
+								# [5, 5, 1],
+								# [5, 6, 1],
+								# [4, 6, 1],
+								
+								#(0, 7)
+								# [0, 7, 1],
+								# [1, 7, 1],
+								# [1, 8, 1],
+								# [0, 8, 1],
+
+								#(6, 7)
+								# [6, 7, 1],
+								# [7, 7, 1],
+								# [7, 8, 1],
+								# [6, 8, 1]
 
 
+							])
+
+	image_points = np.matrix([	
+
+								#### NOT AN ACTUAL SQUARE ####
+								# [534, 550, 1],
+								# [591, 553, 1],
+								# [669, 592, 1],
+								# [470, 592, 1]
+
+								# [530, 	504, 1],
+								# [580, 	504.5, 1],
+								# [583, 	518, 1],
+								# [531, 	518, 1],
+
+								# [534.5, 552, 1],
+								# [593.3,	552, 1],
+								# [594.5, 567, 1],
+								# [534.5, 570.75, 1],
+
+								# [603.5, 593, 1],
+								# [668.5, 592, 1],
+								# [678.5, 614, 1],
+								# [610, 	615, 1],
+
+								# [309.5, 649.5, 1],
+								# [387.06, 647, 1],
+								# [377.062, 678.25, 1],
+								# [294.56, 679.5, 1],	
+
+								# [767, 642, 1],
+								# [840.8, 642, 1],
+								# [865, 672, 1],
+								# [787, 672, 1]
+							])
 
 
 	#==========[ Step 2: find board homography, H]==========
-	H = find_board_homography (world_points, image_points)
+	H = find_board_homography (board_points, image_points)
+	print H
+
 
 	#==========[ Step 3: construct the board	]==========
-	b = Board (H)
+	board = Board (H)
+
+
+	#==========[ Step 5: draw squares on image	]==========
+	drawer = ImageDraw.Draw (image)
+	# board.draw_squares (drawer)
+	points = [ [534, 550], [591, 553],[ 669, 592], [470, 592, 1]]
+	for p in points:
+		top_left = (p[0] - 3, p[1] - 3)
+		bottom_right = (p[0] + 3, p[1] + 3)
+		drawer.rectangle ([top_left, bottom_right], fill=(255, 0, 0))
+
+
+	#==========[ Step 6: display image	]==========
+	image.show ()
+
+
+
 
 	

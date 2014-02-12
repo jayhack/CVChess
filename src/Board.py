@@ -21,6 +21,9 @@ def dehomogenize (x):
 	return (x[0]/x[2], x[1]/x[2])
 
 
+
+
+
 class Board:
 	"""
 		Class: Board
@@ -40,10 +43,12 @@ class Board:
 
 		#==========[ Step 2: construct squares	]==========
 		self.squares = self.construct_squares ()
-		for i in range(8):
-			for j in range(8):
-				print self.squares[i][j]
 
+
+
+	####################################################################################################
+	##############################[ --- UTILIITIES --- ]################################################
+	####################################################################################################
 
 	def board_to_image_coords (self, board_coords):
 		"""
@@ -76,10 +81,11 @@ class Board:
 			returns a 2d-array where the (i, j)th element is a Square object
 		"""
 		#=====[ Step 1: initialize self.squares	]=====
-		squares = [[]]*8;
+		squares = [];
 
 		#=====[ Step 2: construct each square	]=====
 		for i in range (8):
+			squares.append ([])
 			for j in range(8):
 
 				index = (i, j)
@@ -88,6 +94,43 @@ class Board:
 				squares[i].append (new_square)
 
 		return squares
+
+
+	def iter_squares (self):
+		""" 
+			PRIVATE: iter_squares
+			---------------------
+			iterates over all squares in this board
+		"""
+		for i in range(8):
+			for j in range(8):
+				yield self.squares [i][j]
+
+
+
+
+
+
+
+
+
+	####################################################################################################
+	##############################[ --- DRAWING --- ]###################################################
+	####################################################################################################
+
+	def draw_squares (self, draw):
+		"""
+			PUBLIC: draw_squares
+			--------------------
+			given a draw, this will draw each of the squares in self.squares
+		"""
+		# self.squares[3][0].draw_self(draw)
+		# self.squares[3][3].draw_self(draw)
+		# self.squares[4][5].draw_self(draw)
+
+		for square in self.iter_squares ():
+			square.draw_surface (draw)
+
 
 
 
