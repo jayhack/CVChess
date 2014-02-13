@@ -4,7 +4,9 @@ import numpy as np
 from scipy.misc import imread
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+
 from BoardImage import BoardImage
+from util import print_message
 
 def onclick(event):
 	"""
@@ -36,11 +38,10 @@ def onpress (event):
 		return
 
 	#=====[ Step 2: save BoardImage ]=====
-	print "---> Saving image"
 	board_image = BoardImage (name=image_name, image=image, board_points=board_points, image_points=image_points)
-	board_image.save (image_name + '.BoardImage')
+	board_image.save (image_name + '.bi')
+	print_message ("BoardImage saved to " + image_name + 'bi')
 
-	#=====[ Step 3: exit	]=====
 	exit ()
 
 
