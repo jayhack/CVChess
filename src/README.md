@@ -8,14 +8,12 @@
 
 main:
 -----
-• Make .gitignore
 • Figure out how to do display 
 	- pyplot, pil or otherwise?
 • Get images in real-time
 
 MarkImage:
 ----------
-• Have it print out where you save the image
 • Have it display points as you mark them
 
 BoardImage:
@@ -24,12 +22,10 @@ BoardImage:
 
 CVAnalyzer:
 -----------
-• Figure out why it can only get affine projections
 • Implement RANSAC
 
 Report:
 -------
-• Examples of it correctly getting the homography, marking vertices
 • References for finding corners in the first place
 
 

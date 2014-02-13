@@ -34,17 +34,16 @@ if __name__ == "__main__":
 	print_status ("Main", "constructing the board")
 	board = Board (BIH)
 
-
 	#==========[ Step 4: draw squares on image	]==========
 	print_status ("Main", "drawing the board")
 	pil_image = Image.fromarray (board_image.image)
 	drawer = ImageDraw.Draw (pil_image)
 	board.draw_vertices (drawer)
 
-
 	#==========[ Step 6: display image	]==========
 	pil_image.show ()
-	pil_image.save ('micah1_vertices_drawn.jpg')
+
+
 
 
 
