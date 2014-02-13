@@ -1,13 +1,7 @@
 import numpy as np
 from parameters import display_parameters
-
-def get_square_color (square_index):
-	"""
-		Function: get_square_color
-		--------------------------
-		given a square index, returns its color as a tuple: (R, G, B)
-	"""
-	return display_parameters['square_colors'][sum(square_index) % 2]
+from util import board_to_image_coords, image_to_board_coords, algebraic_notation_to_board_coords
+from util import iter_algebraic_notations, iter_board_vertices
 
 
 class Square:
@@ -18,7 +12,7 @@ class Square:
 		board square 
 	"""
 
-	def __init__ (self, _index, _vertex_coords):
+	def __init__ (self, BIH, algebraic_notation):
 		"""
 			PRIVATE: Constructor
 			--------------------
@@ -27,11 +21,10 @@ class Square:
 								clockwise order
 		"""
 		#==========[ Step 1: set parameters	]==========
-		self.index = _index
-		self.vertex_coords = _vertex_coords
-		self.color = get_square_color (_index)
-		print self
-
+		self.an 			= algebraic_notation
+		self.vertices_bc	= algebraic_notation_to_board_coords (algebraic_notation)
+		self.vertices_ic	= [board_to_image_coords (BIH, bc) for bc in self.vertices_bc]
+		self.color 			= self.get_square_color (self.an)
 
 	
 	def __str__ (self):
@@ -50,6 +43,23 @@ class Square:
 
 
 
+	####################################################################################################
+	##############################[ --- UTILITIES --- ]#################################################
+	####################################################################################################
+
+	def get_square_color (self, algebraic_notation):
+		"""
+			Function: get_square_color
+			--------------------------
+			given a square's algebraic notation, this returns its binary color
+			Note: 0 -> white, 1 -> colored
+		"""
+		tl = algebraic_notation_to_board_coords (algebraic_notation)[0]
+		return (tl[0] + tl[1]) % 2 
+
+
+
+
 
 	####################################################################################################
 	##############################[ --- DRAWING --- ]###################################################
@@ -64,15 +74,16 @@ class Square:
 		draw.polygon (self.vertex_coords, fill=self.color)
 
 
-	# def draw_vertices (self, draw):
-	# 	"""
-	# 		PUBLIC: draw_vertices
-	# 		---------------------
-	# 		draws the verties of this square on the image
-	# 	"""
-	# 	for vertex in self.vertex_coords:
-	# 		top_left = (vertex[0])
-	# 		draw.rectangle 
+	def draw_vertices (self, draw):
+		"""
+			PUBLIC: draw_vertices
+			---------------------
+			draws the verties of this square on the image
+		"""
+		for vertex in self.vertices_ic:
+			top_left = (vertex[0] - 8, vertex[1] - 8)
+			bottom_right = (vertex[0] + 8, vertex[1] + 8)
+			draw.rectangle ([top_left, bottom_right], fill=(0, 0, 255))
 
 
 
