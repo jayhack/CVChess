@@ -18,7 +18,7 @@ def onclick(event):
 	print "=====[ Enter board coordinates of point you just clicked: ]====="
 	board_x = int(raw_input ('>>> x: '))
 	board_y = int(raw_input ('>>> y: '))
-	image_point = (event.x, event.y)
+	image_point = (event.xdata, event.ydata)
 	board_point = (board_x, board_y)
 	board_image.add_point_correspondance (board_point=board_point, image_point=image_point)
 	print "Stored as: "

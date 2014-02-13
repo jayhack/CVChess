@@ -1,6 +1,6 @@
 from numpy import matrix, concatenate
 from numpy.linalg import inv, pinv, svd
-from util import homogenize, print_message
+from util import homogenize, print_message, board_to_image_coords
 from BoardImage import BoardImage
 
 
@@ -171,6 +171,9 @@ class CVAnalyzer:
 
 		#=====[ Step 4: assemble BIH from V	]=====
 		BIH = self.assemble_BIH (V)
+
 		return BIH
+
+
 
 

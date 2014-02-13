@@ -55,7 +55,11 @@ class Square:
 			Note: 0 -> white, 1 -> colored
 		"""
 		tl = algebraic_notation_to_board_coords (algebraic_notation)[0]
-		return (tl[0] + tl[1]) % 2 
+		if (tl[0] + tl[1]) % 2 == 1:
+			return (255, 0, 0)
+		else:
+			return (0, 0, 255)
+
 
 
 
@@ -71,7 +75,7 @@ class Square:
 			--------------------
 			draws the surface of this square on the image
 		"""
-		draw.polygon (self.vertex_coords, fill=self.color)
+		draw.polygon (self.vertices_ic, fill=self.color)
 
 
 	def draw_vertices (self, draw):
