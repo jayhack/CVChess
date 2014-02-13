@@ -1,7 +1,8 @@
 from numpy import matrix, concatenate
-from numpy.linalg import inv, pinv
-from util import homogenize
+from numpy.linalg import inv, pinv, svd
+from util import homogenize, print_message
 from BoardImage import BoardImage
+
 
 class CVAnalyzer:
 	"""
@@ -27,6 +28,49 @@ class CVAnalyzer:
 	##############################[ --- FINDING BOARD_IMAGE HOMOGRAPHY --- ]############################
 	####################################################################################################	
 
+	def get_P_rows (self, bp, ip):
+			"""
+			Function: get_P_rows
+			--------------------
+			bp: point in board coordinates
+			ip: corresponding point in image coordinates
+			returns: matrix P_j
+				P_j = 	[x y z 0 0 0 0 0 0]
+						[0 0 0 x y z 0 0 0]
+			"""
+			u, v = ip[0], ip[1]
+			x, y, z = bp[0], bp[1], 1
+			return matrix 	([
+								[x, y, z, 0, 0, 0, -u*x, -u*y, -u],
+								[0, 0, 0, x, y, z, -v*x, -v*y, -v],								
+
+							])
+
+	def get_P (self, board_points, image_points):
+		"""
+			Function: get_P
+			---------------
+			board_points: list of points from board 
+			image_points: list of points from image
+			returns: matrix P such that 
+				P * M = 0
+				M = columnized version of BIH
+
+			P is 2n * 9, where n = number of correspondences
+		"""
+		return concatenate ([self.get_P_rows (bp, ip) for bp, ip in zip(board_points, image_points)], 0)
+
+
+	def assemble_BIH (self, V):
+		"""
+			Function: assemble_BIH
+			----------------------
+			given V, assembles a matrix from it 
+		"""
+		vt = V.T[:, -1]
+		return concatenate ([vt[0:3].T, vt[3:6].T, vt[6:9].T], 0);
+
+
 	def get_BP_rows (self, bp_j):
 		"""
 			Function: get_BP_rows
@@ -38,10 +82,17 @@ class CVAnalyzer:
 						[0 0 0 0 0 0 x y z]
 		"""
 		x, y, z = bp_j[0], bp_j[1], 1
+		# return matrix 	([	
+		# 						[x, y, z, 0, 0, 0, 0, 0, 0],
+		# 						[0, 0, 0, x, y, z, 0, 0, 0],
+		# 						[0, 0, 0, 0, 0, 0, x, y, z]
+		# 					])
+
+		#####[ Trying it without the bottom left...	]#####
 		return matrix 	([	
 								[x, y, z, 0, 0, 0, 0, 0, 0],
 								[0, 0, 0, x, y, z, 0, 0, 0],
-								[0, 0, 0, 0, 0, 0, x, y, z]
+								[0, 0, 0, 0, 0, 0, x, y, 0]
 							])
 
 
@@ -51,12 +102,17 @@ class CVAnalyzer:
 			-----------------------
 			board_points: list of points in board coordinates
 			returns: matrix BP such that
-				BP * bih = IP
+				BP * BIH = IP
 				bih = columnized version of BIH
 				IP 	= columnized version of image points (see get_IP)
 		"""
 		return concatenate ([self.get_BP_rows (board_point) for board_point in board_points], 0)
 
+
+	def alt_homogenize (self, image_point):
+		c = homogenize (image_point)
+		c[2][0] = -1
+		return c
 
 	def get_IP (self, image_points):
 		"""
@@ -68,7 +124,8 @@ class CVAnalyzer:
 				IP[i*3 + 1][0]	= ip_i.y
 				IP[i*3 + 2][0]	= ip_i.z
 		"""
-		return concatenate([homogenize(image_point) for image_point in image_points], 0)
+		# return concatenate([homogenize(image_point) for image_point in image_points], 0)
+		return concatenate([self.alt_homogenize(image_point) for image_point in image_points], 0)		
 
 
 	def solve_homogenous_system (self, BP, IP):
@@ -87,6 +144,7 @@ class CVAnalyzer:
 			-------------------------------
 			finds BIH using a least-squares approach
 		"""
+
 		x_ls = self.solve_homogenous_system (BP, IP)
 		return concatenate ([x_ls[0:3].T, x_ls[3:6].T, x_ls[6:9].T], 0);
 
@@ -105,12 +163,14 @@ class CVAnalyzer:
 		board_points, image_points = board_image.board_points, board_image.image_points
 		assert (len (board_points) == len (image_points)) and (len(board_points) >= 4)
 
-		#=====[ Step 2: get BP and IP ]=====
-		BP = self.get_BP (board_points)
-		IP = self.get_IP (image_points)
+		#=====[ Step 2: get P	]=====
+		P = self.get_P (board_points, image_points)
 
-		#=====[ Step 3: get BIH ]===
-		BIH = self.get_BIH_least_squares (BP, IP)
+		#=====[ Step 3: SVD on P ]=====
+		U, S, V = svd (P)
+
+		#=====[ Step 4: assemble BIH from V	]=====
+		BIH = self.assemble_BIH (V)
 		return BIH
 
 

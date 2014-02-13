@@ -33,7 +33,6 @@ class BoardImage:
 		self.image = image
 		self.board_points = board_points
 		self.image_points = image_points
-		self.display_axis = display_axis
 		assert len(board_points) == len(image_points)
 
 		#=====[ Step 4: set name	]=====

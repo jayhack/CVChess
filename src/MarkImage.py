@@ -16,8 +16,8 @@ def onclick(event):
 		has you input the board coords of the point you just clicked
 	"""
 	print "=====[ Enter board coordinates of point you just clicked: ]====="
-	board_x = raw_input ('>>> x: ')
-	board_y = raw_input ('>>> y: ')
+	board_x = int(raw_input ('>>> x: '))
+	board_y = int(raw_input ('>>> y: '))
 	image_point = (event.x, event.y)
 	board_point = (board_x, board_y)
 	board_image.add_point_correspondance (board_point=board_point, image_point=image_point)
@@ -34,13 +34,13 @@ def onpress (event):
 		user enters esc -> this quits
 	"""
 	#=====[ Step 1: verify key	]=====
-	if not key == 'escape':
+	if not event.key == 'escape':
 		return
 
 	#=====[ Step 2: save BoardImage ]=====
-	board_image = BoardImage (name=image_name, image=image, board_points=board_points, image_points=image_points)
-	board_image.save (image_name + '.bi')
-	print_message ("BoardImage saved to " + image_name + 'bi')
+	image_name = 'board_image.bi'
+	board_image.save (image_name)
+	print_message ("BoardImage saved to " + image_name)
 
 	exit ()
 
@@ -52,7 +52,7 @@ if __name__ == "__main__":
 	if not len(sys.argv) == 2:
 		raise StandardError ("Enter only the filepath to the image you want to mark")
 	filename 	= sys.argv[1]
-	image_name 	= os.path.split (filename)
+	image_name 	= os.path.split (filename)[1]
 	if not os.path.isfile (filename):
 		raise StandardError ("Couldn't find the file you passed in...")
 

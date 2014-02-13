@@ -19,8 +19,8 @@ if __name__ == "__main__":
 
 	#==========[ Step 1: get board_image ]==========
 	print_status ("Main", "loading board image")
-	# bi_filename = os.path.join (board_image_dir, 'micah1.bi')
-	bi_filename = os.path.join (board_image_dir, 'above.bi')
+	bi_filename = os.path.join (board_image_dir, 'micah1.bi')
+	# bi_filename = os.path.join (board_image_dir, 'above.bi')
 	board_image = BoardImage (filename=bi_filename)
 
 	#==========[ Step 2: construct cv_analyzer, get BIH ]==========
