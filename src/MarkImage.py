@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from BoardImage import BoardImage
 
-
 def onclick(event):
 	"""
 		Function: onclick
