@@ -6,19 +6,88 @@
 0. TODO
 =======
 
-main:
------
-• Figure out how to do display 
-	- pyplot, pil or otherwise?
-• Get images in real-time
+Overview:
+---------
+• Get all packages working on one python installation (ipython)
+	-- cv2
+	-- numpy
+	-- PIL
 
-MarkImage:
-----------
-• Have it display points as you mark them
+• Gather baseline data:
+	-- board corners
+	-- square occupation
+	-- intuitive interface
 
-BoardImage:
------------
-• Finish draw_marked_points
+• Implement automated corner-finding:
+	-- find harris corners in image
+	-- train/apply classifier for candidate filtering
+	-- train/apply PGM for finding corners
+
+• Baseline visualization:
+	-- show each step in separate displayed images
+	-- cv2 display functions
+
+• Make it work in real-time
+	-- create movement detector
+
+• Integrate chess engine
+	-- @prithvi
+
+• Advanced Visualization:
+	- provide chess engine insights
+
+• Bootstrap more data from real games for better classifiers
+	- makes for easier training
+	- adapt to lighting conditions, etc.
+
+
+Gathering Data:
+---------------
+• Update BoardImage:
+	-- image representation:
+		• cv2 image
+	-- corner representation:
+		• image coordinates
+		• board coordinates
+		• descriptor
+	-- square representation:
+		• corners
+			-- pointer to all of them
+		• algebraic notation
+		• occupation
+	-- visualization:
+		• draw vertices
+		• draw square edges
+		• draw square surfaces
+
+• MarkImages.py:
+	-- Mark corners:
+		• harris corner detector finds all possible candidates
+		• clicking in near vicinity of harris corners, in pre-specified order,
+			adds the correspondance
+		• finds homography from this, marks all other probable corners?
+
+• Square Occupation
+	-- after corners marked, establish squares, draw outlines
+	-- user clicks on *all* occupied ones
+
+• Create dataset class
+	-- 
+
+
+Finding Corners:
+----------------
+• Get corner candidates:
+	-- get_harris_corners (image)
+	-- load_classifiers ()
+		• load_harris_corner_classifier ()
+		• load_square_occupation_classifier ()
+	-- filter_harris_corners (harris_corners)
+		• applies harris_corner_classifier to harris corners
+
+• Get correspondences:
+	-- 
+
 
 CVAnalyzer:
 -----------
