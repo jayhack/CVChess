@@ -1,6 +1,5 @@
 #!/opt/local/bin/python
 import cv2
-
 from BoardImage import BoardImage
 from util import print_message
 

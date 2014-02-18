@@ -2,6 +2,108 @@ from time import time
 import pickle
 import matplotlib.pyplot as plt
 
+
+####################################################################################################
+##############################[ --- CornerImage --- ]###############################################
+####################################################################################################
+
+class CornerImage:
+	"""
+		Class: CornerImage 
+		------------------
+		container for a marked corner in an image.
+	"""
+	
+	def __init__ (self, image, board_coords, image_coords):
+		"""
+			Function: Constructor 
+			---------------------
+			image: image corner is located in 
+			board_coords: location of corner in board coordinates 
+			image_coords: location of corner in image coordinates
+		"""
+		self.board_coords = board_coords
+		self.image_coords = image_coords
+		self.descriptor = descriptor
+
+	
+	def __str__ (self):
+		"""
+			Function: __str__
+			-----------------
+			printable string rep
+		"""
+		raise NotImplementedError
+
+
+	def draw (self):
+		"""
+			PUBLIC: draw
+			------------
+			draws a representation of this corner onto the image
+		"""
+		raise NotImplementedError
+
+
+
+
+
+
+
+
+
+
+####################################################################################################
+##############################[ --- SquareImage --- ]###############################################
+####################################################################################################
+
+class SquareImage:
+	"""
+		Class: SquareImage
+		------------------
+		container for a square in an image
+	"""
+
+	def __init__ (self, image, corners):
+		"""
+			PUBLIC: Constructor
+			-------------------
+			image: image that square is located in 
+			corners: list of CornerImage objects defining this object
+		"""
+		raise NotImplementedError
+
+
+	def __str__ (self, image, corners):
+		"""
+			Function: __str__
+			-----------------
+			printable string rep
+		"""
+		raise NotImplementedError
+
+
+	def draw (self):
+		"""
+			PUBLIC: draw
+			------------
+			draws a representation of this corner onto the image
+		"""
+		raise NotImplementedError
+
+
+
+
+
+
+
+
+
+
+####################################################################################################
+##############################[ --- BoardImage --- ]################################################
+####################################################################################################
+
 class BoardImage:
 	"""
 		Class: BoardImage
@@ -10,6 +112,9 @@ class BoardImage:
 
 		Member Variables:
 			- image: numpy ndarray representing the image 
+			- corners: list of point correspondances between board coordinates
+						and image coordinates. (board_coords, image_coords, descriptor)
+			- squares: list of SquareImage 
 
 	"""
 
@@ -72,21 +177,30 @@ class BoardImage:
 
 
 
+
+
+
+
+
+
 	####################################################################################################
 	##############################[ --- DISPLAYING --- ]################################################
 	####################################################################################################
 
-	# def draw_marked_points (self):
-	# 	"""
-	# 		PUBLIC: draw_points
-	# 		-------------------
-	# 		draws a single point onto the plot
-	# 	"""
-	# 	if not self.display_axis:
-	# 		raise StandardError ("You have to construct BoardImage with a display_axis in order to draw")
+	def draw (self):
+		"""
+			PUBLIC: draw
+			------------
+			draws a representation of this corner onto the image
+		"""
+		raise NotImplementedError
 
-	# 	for board_point, image_point in zip(self.board_points, self.image_points):
-	# 		plt.plot (image_point[0], image_point[1], color='blue', marker='o')
+
+
+
+
+
+
 
 
 
