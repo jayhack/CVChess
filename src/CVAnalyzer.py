@@ -1,3 +1,4 @@
+import cv2
 from numpy import matrix, concatenate
 from numpy.linalg import inv, pinv, svd
 from util import homogenize, print_message, board_to_image_coords
@@ -19,7 +20,11 @@ class CVAnalyzer:
 			-------------------
 			board_image: BoardImage object, the first frame
 		"""
-		pass
+		#=====[ Step 1: set up feature extractors	]=====
+		self.corner_detector = cv2.FeatureDetector_create ('HARRIS')
+		self.sift_descriptor = cv2.DescriptorExtractor_create('SIFT')
+
+		self.sift = cv2.SIFT ()
 
 
 
@@ -34,23 +39,26 @@ class CVAnalyzer:
 	##############################[ --- FIND BOARD CORNER CORRESPONDENCES --- ]#########################
 	####################################################################################################
 
+
 	def get_harris_corners (self, image):
 		"""
 			Function: get_harris_corners
 			----------------------------
-			given an image, returns a list of image coordinates 
-			of all harris corners
+			given an image, returns a list of cv2.KeyPoints representing
+			the harris corners
 		"""
-		raise NotImplementedError 
+		return self.corner_detector.detect (image)
 
 
-	def get_sift_representation (self, image, image_point):
+	def get_sift_descriptors (self, image, kpts):
 		"""
-			Function: get_sift_representation
-			---------------------------------
-			given an image and point within it, this returns a sift representation
+			Function: get_sift_descriptor
+			-----------------------------
+			given an image and a list of keypoints, this returns a SIFT 
+			a list of corresponding SIFT descriptors
 		"""
-		raise NotImplementedError
+		print self.sift_descriptor.compute (image, kpts)[0]
+		return self.sift_descriptor.compute (image, kpts)
 
 
 	def get_corner_prob (self, harris_corner_sift):
@@ -63,22 +71,6 @@ class CVAnalyzer:
 		raise NotImplementedError
 
 
-	def filter_harris_corners (self, image, harris_corners, prob_threshold=0.8):
-		"""
-			Function: filter_harris_corners 
-			-------------------------------
-			given an image and a list of image coordinates corresponding to harris 
-			corners, this returns a 'filtered' list of (harris corner, corner prob)
-		"""
-		#=====[ Step 1: get sift rep of corners	]=====
-		harris_corners_sift = [self.get_sift_representation(image, c) for c in corners_ic]
-
-		#=====[ Step 2: get prob. of each	]=====
-		corner_probs = [self.get_corner_prob (hcs) for hcs in harris_corners_sift]
-
-		#=====[ Step 3: filter and return	]=====
-		return [(hc, prob) for hc, prob in zip(harris_corners_sift, corner_probs) if prob > prob_threshold]
-
 
 	def get_board_corner_correspondences  (self, image):
 		"""
@@ -87,7 +79,13 @@ class CVAnalyzer:
 			given an image, this returns a list of point correspondences relating 
 			board coordinates to image coordinates.
 		"""
-		raise NotImplementedError
+		#=====[ Step 1: get harris corners	]=====
+		harris_corners = self.get_harris_corners (image)
+
+		#=====[ Step 2: get SIFT descriptors for them	]=====
+		harris_corners_sift = self.get_sift_descriptors (image, harris_corners)
+
+		return harris_corners_sift
 
 
 
@@ -97,7 +95,8 @@ class CVAnalyzer:
 
 
 
-		
+
+
 	####################################################################################################
 	##############################[ --- FINDING BOARD_IMAGE HOMOGRAPHY --- ]############################
 	####################################################################################################	

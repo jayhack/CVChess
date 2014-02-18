@@ -1,6 +1,5 @@
 from time import time
 import pickle
-import matplotlib.pyplot as plt
 
 
 ####################################################################################################
@@ -14,7 +13,7 @@ class CornerImage:
 		container for a marked corner in an image.
 	"""
 	
-	def __init__ (self, image, board_coords, image_coords):
+	def __init__ (self, board_coords, image_coords, descriptor):
 		"""
 			Function: Constructor 
 			---------------------
@@ -164,16 +163,18 @@ class BoardImage:
 	##############################[ --- UPDATING --- ]##################################################
 	####################################################################################################
 
-	def add_point_correspondance (self, board_point=None, image_point=None):
+	def add_point_correspondance (self, board_point, image_point):
 		"""
 			PUBLIC: add_point_correspondance
 			--------------------------------
 			add a single point correspondance
 		"""
-		assert not None in [board_point, image_point]
-		self.board_points.append (board_point)
-		self.image_points.append (image_point)
+		#=====[ Step 1: ensure correct type for board/image point	]=====
+		assert len(board_point) == len(image_point)
+		assert len(board_point) == 2
 
+		#=====[ Step 2: construct a new CornerImage	]=====
+		corner_image = CornerImage (image, board_point, image_point)
 
 
 
