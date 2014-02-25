@@ -1,7 +1,8 @@
-from time import time
 import pickle
-from util import iter_algebraic_notations
+from time import time
 from Square import Square
+from CVAnalyzer import CVAnalyzer
+from util import iter_algebraic_notations
 
 class Board:
 	"""

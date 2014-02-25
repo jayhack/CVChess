@@ -109,7 +109,7 @@ if __name__ == "__main__":
 	board = Board 	(	
 						image=image, 
 						name=image_name, 
-						corner_board_points=corner_board_points, 
-						corner_image_points=corner_image_points,
-						corner_sift_desc = corner_sift_desc
+						board_points=corner_board_points, 
+						image_points=corner_image_points,
+						sift_desc = corner_sift_desc
 					)
