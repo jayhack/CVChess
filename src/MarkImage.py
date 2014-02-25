@@ -3,14 +3,15 @@ import os, sys
 import numpy as np
 import cv, cv2
 from CVAnalyzer import CVAnalyzer
-from BoardImage import BoardImage
-from util import print_message
+from Board= import Board
+from util import print_message, print_status
 
 
 #==========[ Global Data	]==========
+corner_keypoints 		= []
 corner_image_points 	= []
 corner_board_points 	= []
-corner_descriptors 		= []
+corner_sift_desc		= []
 
 
 def get_closest_keypoint (image_point, keypoints):
@@ -40,16 +41,19 @@ def on_mouse(event, x, y, flags, param):
 		return
 
 	#=====[ Step 2: get corresponding points	]=====
-	print "=====[ Enter board coordinates of point you just clicked: ]====="
+	print "=====[ Enter board coordinates: ]====="
 	board_x = int(raw_input ('>>> x: '))
 	board_y = int(raw_input ('>>> y: '))
 	board_point = (board_x, board_y)
-	image_point = get_closest_keypoint ((x, y), param)
+	keypoint = get_closest_keypoint ((x, y), param)
+	image_point = keypoint.pt
 	print "Stored as: "
 	print "	- board_point: ", board_point
-	print "	- image_point: ", image_point.pt
+	print "	- image_point: ", image_point
 	corner_board_points.append (board_point)
 	corner_image_points.append (image_point)
+	corner_keypoints.append (keypoint)
+	print_message ("ESC to exit")
 
 
 
@@ -58,8 +62,9 @@ if __name__ == "__main__":
 
 	#==========[ Step 1: sanitize input 	]==========
 	if not len(sys.argv) == 2:
-		raise StandardError ("Enter only the filepath to the image you want to mark")
-	filename 	= sys.argv[1]
+		filename = '../data/micahboard/1.jpg'
+	else:
+		filename 	= sys.argv[1]
 	image_name 	= os.path.split (filename)[1]
 	if not os.path.isfile (filename):
 		raise StandardError ("Couldn't find the file you passed in: " + image_name)
@@ -85,7 +90,7 @@ if __name__ == "__main__":
 	while True:
 
 		disp_image = cv2.drawKeypoints (image, harris_corners, color=(0, 0, 255))
-		disp_image = cv2.drawKeypoints (disp_image, corner_image_points, color=(255, 0, 0))
+		disp_image = cv2.drawKeypoints (disp_image, corner_keypoints, color=(255, 0, 0))
 
 		cv2.imshow ('DISPLAY', disp_image)
 		key = cv2.waitKey(30)
@@ -94,11 +99,17 @@ if __name__ == "__main__":
 
 	
 	#==========[ Step 5: get descriptors for each corner point	]==========
-	corner_descriptors = cv_analyzer.get_sift_descriptors (image, corner_image_points)
-	print corner_descriptors[0]
-
-	#==========[ Step 3: construct BoardImage	]==========
-	# board_image = BoardImage (image=image, name=image_name, corners=[], squares=[])
+	print_status ('MarkImage', 'getting SIFT descriptors for clicked corners')
+	kpts, desc = cv_analyzer.get_sift_descriptors (image, corner_keypoints)
+	corner_sift_desc = desc
 
 
-
+	#==========[ Step 6: construct BoardImage	]==========
+	print_status ('MarkImage', 'constructing BoardImage object')	
+	board = Board 	(	
+						image=image, 
+						name=image_name, 
+						corner_board_points=corner_board_points, 
+						corner_image_points=corner_image_points,
+						corner_sift_desc = corner_sift_desc
+					)
