@@ -2,8 +2,8 @@
 import os, sys
 import numpy as np
 import cv, cv2
-from CVAnalyzer import CVAnalyzer
-from Board= import Board
+import CVAnalysis
+from Board import Board
 from util import print_message, print_status
 
 
@@ -24,7 +24,7 @@ def get_closest_keypoint (image_point, keypoints):
 	def euc_dist (ip, kp):
 		return (ip[0] - kp.pt[0])**2 + (ip[1] - kp.pt[1])**2
 
-	distances 	= [euc_dist(image_point, kp) for kp in keypoints]
+	distances = [euc_dist(image_point, kp) for kp in keypoints]
 	return keypoints.pop (np.argmin(distances))
 
 
@@ -76,8 +76,7 @@ if __name__ == "__main__":
 
 
 	#==========[ Step 3: get corners	]==========
-	cv_analyzer = CVAnalyzer ()
-	harris_corners = cv_analyzer.get_harris_corners (image)
+	harris_corners = CVAnalysis.get_harris_corners (image)
 	disp_image = cv2.drawKeypoints (image, harris_corners, color=(0, 0, 255))
 
 
@@ -100,7 +99,7 @@ if __name__ == "__main__":
 	
 	#==========[ Step 5: get descriptors for each corner point	]==========
 	print_status ('MarkImage', 'getting SIFT descriptors for clicked corners')
-	kpts, desc = cv_analyzer.get_sift_descriptors (image, corner_keypoints)
+	kpts, desc = CVAnalysis.get_sift_descriptors (image, corner_keypoints)
 	corner_sift_desc = desc
 
 

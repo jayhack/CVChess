@@ -1,7 +1,7 @@
 import pickle
 from time import time
+import CVAnalysis
 from Square import Square
-from CVAnalyzer import CVAnalyzer
 from util import iter_algebraic_notations
 
 class Board:
@@ -31,7 +31,7 @@ class Board:
 			return
 	
 		#=====[ Step 2: check arguments	]=====
-		if None in [name, image, corner_board_points, corner_image_points]:
+		if None in [name, image, board_points, image_points]:
 				raise StandardError ("Must enter all data arguments or a filename")
 
 		#=====[ Step 3: set name	]=====
@@ -47,8 +47,7 @@ class Board:
 		self.image_points = image_points
 		self.sift_desc = sift_desc
 
-		#=====[ Step 5: get cv_analyzer, BIH, squares	]=====
-		self.cv_analyzer = CVAnalyzer ()
+		#=====[ Step 5: get BIH, squares ]=====
 		self.get_BIH ()
 		self.construct_squares ()
 
@@ -129,7 +128,7 @@ class Board:
 			----------------
 			finds the board-image homography 
 		"""
-		self.BIH = self.cv_analyzer.find_board_image_homography (self.board_points, self.image_points)
+		self.BIH = CVAnalysis.find_board_image_homography (self.board_points, self.image_points)
 
 
 	def construct_squares (self):
