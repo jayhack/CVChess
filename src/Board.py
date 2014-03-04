@@ -20,7 +20,7 @@ class Board:
 
 	"""
 
-	def __init__ (self, name=None, image=None, board_points=None, image_points=None, sift_desc=None, filename=None):
+	def __init__ (self, name=None, image=None, BIH=None, board_points=None, image_points=None, sift_desc=None, filename=None):
 		"""
 			PRIVATE: Constructor
 			--------------------
@@ -31,7 +31,12 @@ class Board:
 		if filename:
 			self.construct_from_file (filename)
 	
-		#=====[ CASE: from 	]=====
+		#=====[ CASE: from BIH	]=====
+		elif not None in [image, BIH]:
+			self.construct_from_BIH (name, image, BIH)
+
+
+		#=====[ CASE: from points	]=====
 		else:
 			if None in [name, image, board_points, image_points]:
 				raise StandardError ("Must enter all data arguments or a filename")
@@ -75,6 +80,35 @@ class Board:
 		self.construct_squares ()
 
 
+	def construct_from_BIH (self, name, image, BIH):
+		"""
+			PRIVATE: construct_from_BIH
+			---------------------------
+			fills out this BoardImage based on a BIH, assuming the image 
+			that you computed it from came from the same chessboard, same 
+			pose 
+		"""
+		#=====[ Step 1: set name	]=====
+		if not name:
+			self.name = str(time ())
+		else:
+			self.name = name
+
+		#=====[ Step 1: set BIH/image	]=====
+		self.BIH = BIH
+		self.image = image
+
+		#=====[ Step 2: set squares	]=====
+		self.construct_squares ()
+
+		#=====[ Step 3: set everything else	]=====
+		self.board_points = None
+		self.image_points = None 
+		self.sift_desc = None
+
+
+
+
 
 	####################################################################################################
 	##############################[ --- DATA MANAGEMENT --- ]###########################################
@@ -106,7 +140,7 @@ class Board:
 				self.squares [i][j].add_occlusion (occlusions[i][j])
 
 
-	def get_occlusions (self):
+	def get_occlusion_features (self):
 		"""
 			PUBLIC: get_occlusions
 			----------------------
@@ -114,9 +148,12 @@ class Board:
 			X: np.mat where each row is a feature vector representing a square
 			y: list of labels for X
 		"""
-		X = [s.contents_histogram for s in self.iter_squares ()]
+		X = [s.get_occlusion_features () for s in self.iter_squares ()]
 		y = [s.occlusion for s in self.iter_squares ()]
 		return np.array (X), np.array(y)
+
+
+
 
 
 	####################################################################################################
@@ -264,7 +301,6 @@ class Board:
 		key = 0
 		while key != 27:
 			key = cv2.waitKey(30)
-
 
 
 	def draw_vertices (self, draw):

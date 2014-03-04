@@ -11,7 +11,7 @@ Overview:
 • Get all packages working on one python installation (ipython)
 	-- cv2
 	-- numpy
-	-- PIL
+	-- Chessnut
 
 • Gather baseline data:
 	-- board corners

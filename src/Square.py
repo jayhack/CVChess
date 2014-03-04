@@ -25,9 +25,9 @@ class Square:
 			_vertext_corners: list of image coordinates of this square's coordinates in 
 								clockwise order
 		"""
-		#=====[ Step 1: algebraic notation/draw color	]=====
+		#=====[ Step 1: algebraic notation/colors	]=====
 		self.an = algebraic_notation
-		self.get_draw_color (self.an)
+		self.get_colors (self.an)
 
 		#=====[ Step 2: get vertices in board/image coords	]=====
 		self.get_vertices (BIH)
@@ -59,7 +59,7 @@ class Square:
 	##############################[ --- EXTRACTING INFO FROM IMAGE --- ]################################
 	####################################################################################################
 
-	def get_draw_color (self, algebraic_notation):
+	def get_colors (self, algebraic_notation):
 		"""
 			Function: get_square_color
 			--------------------------
@@ -68,8 +68,10 @@ class Square:
 		"""
 		tl = algebraic_notation_to_board_coords (algebraic_notation)[0]
 		if (tl[0] + tl[1]) % 2 == 1:
+			self.color = 1
 			self.draw_color = (255, 0, 0)
 		else:
+			self.color = 0
 			self.draw_color = (0, 0, 255)
 
 
@@ -117,23 +119,26 @@ class Square:
 			that occur within the *masked* self.image_region
 		"""
 		#=====[ Step 1: get histograms for each	]=====
-		num_buckets = [16]
-		self.b_hist = cv2.calcHist(self.image_region, [0], None, num_buckets, [0, 256])
-		self.g_hist = cv2.calcHist(self.image_region, [1], None, num_buckets, [0, 256])
-		self.r_hist = cv2.calcHist(self.image_region, [2], None, num_buckets, [0, 256])		
-
-		#=====[ Step 2: account for all the black in images due to mask	]=====
-		self.b_hist[0] = 0
-		self.g_hist[0] = 0
-		self.r_hist[0] = 0
+		num_buckets = [32]
+		self.b_hist = cv2.calcHist(self.image_region, [0], None, num_buckets, [1, 256])
+		self.g_hist = cv2.calcHist(self.image_region, [1], None, num_buckets, [1, 256])
+		self.r_hist = cv2.calcHist(self.image_region, [2], None, num_buckets, [1, 256])		
 
 		#=====[ Step 3: concatenate to get hist_features	]=====
 		self.contents_histogram = np.concatenate ([self.b_hist, self.g_hist, self.r_hist], 0).flatten ()
-		print self.contents_histogram.shape
 
 	def add_occlusion (self, occlusion):
 		self.occlusion = occlusion
 
+
+	def get_occlusion_features (self):
+		"""
+			PUBLIC: get_occlusion_features
+			------------------------------
+			returns a numpy array representing this square, optimized
+			for discerning occlusion 
+		"""
+		return np.concatenate([[self.color], self.contents_histogram])
 
 
 	####################################################################################################
