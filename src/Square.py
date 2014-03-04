@@ -36,7 +36,7 @@ class Square:
 		self.get_image_region (image)
 
 		#=====[ Step 3: find a histogram of the content sof self.image_region ]=====
-		# self.get_contents_histogram ()
+		self.get_contents_histogram ()
 
 	
 	def __str__ (self):
@@ -101,8 +101,12 @@ class Square:
 
 		#=====[ Step 3: create mask	]=====
 		self.image_region_mask = np.zeros (self.image_region.shape[:2])
-		cv2.fillConvexPoly (self.image_region_mask, np.array(self.image_vertices).astype(int), 1)
+		mask_coords = [(i[0] - x_min, i[1] - y_min) for i in self.image_vertices]
+		cv2.fillConvexPoly (self.image_region_mask, np.array(mask_coords).astype(int), 1)
 
+		#=====[ Step 4: apply mask (turns outside pixels to black)	]=====
+		idx = (self.image_region_mask == 0)
+		self.image_region[idx] = 0
 
 
 	def get_contents_histogram (self):
@@ -113,13 +117,18 @@ class Square:
 			that occur within the *masked* self.image_region
 		"""
 		#=====[ Step 1: get histograms for each	]=====
-		self.b_hist = cv2.calcHist(self.image_region, [0], self.image_region_mask, [256], [0, 256])
-		self.g_hist = cv2.calcHist(self.image_region, [1], self.image_region_mask, [256], [0, 256])
-		self.r_hist = cv2.calcHist(self.image_region, [2], self.image_region_mask, [256], [0, 256])		
+		num_buckets = [16]
+		self.b_hist = cv2.calcHist(self.image_region, [0], None, num_buckets, [0, 256])
+		self.g_hist = cv2.calcHist(self.image_region, [1], None, num_buckets, [0, 256])
+		self.r_hist = cv2.calcHist(self.image_region, [2], None, num_buckets, [0, 256])		
 
-		#=====[ Step 2: concatenate to get hist_features	]=====
+		#=====[ Step 2: account for all the black in images due to mask	]=====
+		self.b_hist[0] = 0
+		self.g_hist[0] = 0
+		self.r_hist[0] = 0
+
+		#=====[ Step 3: concatenate to get hist_features	]=====
 		self.contents_histogram = np.concatenate ([self.b_hist, self.g_hist, self.r_hist], 0)
-
 
 
 
