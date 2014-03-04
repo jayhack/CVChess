@@ -128,9 +128,11 @@ class Square:
 		self.r_hist[0] = 0
 
 		#=====[ Step 3: concatenate to get hist_features	]=====
-		self.contents_histogram = np.concatenate ([self.b_hist, self.g_hist, self.r_hist], 0)
+		self.contents_histogram = np.concatenate ([self.b_hist, self.g_hist, self.r_hist], 0).flatten ()
+		print self.contents_histogram.shape
 
-
+	def add_occlusion (self, occlusion):
+		self.occlusion = occlusion
 
 
 

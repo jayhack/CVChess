@@ -1,6 +1,7 @@
 import pickle
 from time import time
 import cv2
+import numpy as np
 import CVAnalysis
 from Square import Square
 from util import iter_algebraic_notations
@@ -26,51 +27,96 @@ class Board:
 			constructs a BoardImage from it's constituent data
 			or the filename of a saved one
 		"""
-		#=====[ Step 1: file/not file ]=====
+		#=====[ CASE: from file ]=====
 		if filename:
-			self.load (filename)
-			return
+			self.construct_from_file (filename)
 	
-		#=====[ Step 2: check arguments	]=====
-		if None in [name, image, board_points, image_points]:
+		#=====[ CASE: from 	]=====
+		else:
+			if None in [name, image, board_points, image_points]:
 				raise StandardError ("Must enter all data arguments or a filename")
+			else:
+				self.construct_from_points (name, image, board_points, image_points, sift_desc)
 
-		#=====[ Step 3: set name	]=====
+
+	def construct_from_file (self, filename):
+		"""
+			PRIVATE: construct_from_file
+			----------------------------
+			loads a previously-saved BoardImage
+		"""
+		self.load (filename)
+
+
+	def construct_from_points (self, name, image, board_points, image_points, sift_desc):
+		"""
+			PRIVATE: construct_from_points
+			------------------------------
+			fills out this BoardImage based on passed in fields 
+		"""
+		#=====[ Step 1: set name	]=====
 		if not name:
 			self.name = str(time ())
 		else:
 			self.name = name
 
-		#=====[ Step 4: set image	]=====
+		#=====[ Step 2: set image	]=====
 		self.image = image
 
-		#=====[ Step 5: set corners	]=====
+		#=====[ Step 3: set corners	]=====
 		assert len(board_points) == len(image_points)
 		assert len(board_points) == len(sift_desc)
 		self.board_points = board_points
 		self.image_points = image_points
 		self.sift_desc = sift_desc
 
-		#=====[ Step 6: get BIH, squares ]=====
+		#=====[ Step 4: get BIH, squares ]=====
 		self.get_BIH ()
 		self.construct_squares ()
 
-		#=====[ Step 7: save this image	]=====
-		self.save ('temp.bi')
 
 
-		cv2.namedWindow ('square_region')
-		for square in self.iter_squares ():
-			print square.image_vertices
-			print square.image_region.shape
-			cv2.imshow ('square_region', square.image_region)
-			key = cv2.waitKey(30)
-			while key != 27:
-				pass
+	####################################################################################################
+	##############################[ --- DATA MANAGEMENT --- ]###########################################
+	####################################################################################################	
+
+	def parse_occlusions (self, filename):
+		"""
+			PRIVATE: parse_occlusions
+			-------------------------
+			given a filename containing occlusions, returns it in 
+			list format 
+		"""
+		return [line.strip().split(' ') for line in open(filename, 'r').readlines ()]
 
 
+	def add_occlusions (self, filename):
+		"""
+			PUBLIC: add_occlusions
+			----------------------
+			given the name of a file containing occlusions, this will 
+			add them to each of the squares 
+		"""
+		#=====[ Step 1: parse occlusions	]=====
+		occlusions = self.parse_occlusions (filename)
+
+		#=====[ Step 2: add them one-by-one	]=====
+		for i in range(8):
+			for j in range(8):
+				self.squares [i][j].add_occlusion (occlusions[i][j])
 
 
+	def get_occlusions (self):
+		"""
+			PUBLIC: get_occlusions
+			----------------------
+			returns X, y
+			X: np.mat where each row is a feature vector representing a square
+			y: list of labels for X
+		"""
+		X = [s.contents_histogram for s in self.iter_squares ()]
+		y = [s.occlusion for s in self.iter_squares ()]
+		return np.array (X), np.array(y)
 
 
 	####################################################################################################
@@ -232,6 +278,11 @@ class Board:
 
 
 
+if __name__ == "__main__":
+	
+	board = Board (filename='test.bi')
+	board.add_occlusions ('test.oc')
+	X, y = board.get_occlusions ()
 
 
 
