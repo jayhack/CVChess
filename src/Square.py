@@ -92,9 +92,9 @@ class Square:
 			areas outside of the square 
 		"""
 		#=====[ Step 1: get bounding box coordinates	]=====
-		x_coords, y_coords = [x[0] for x in self.image_vertices], [y[1] for y in self.image_vertices]
-		x_min, x_max = int(min(x_coords)), int(max(x_coords))
-		y_min, y_max = int(min(y_coords)), int(max(y_coords))
+		iv = np.array (self.image_vertices).astype(int)
+		x_min, x_max = min(iv[:, 0]), max(iv[:, 0])
+		y_min, y_max = min(iv[:, 1]), max(iv[:, 1])
 
 		#=====[ Step 2: extract image region 	]=====
 		self.image_region = image[y_min:(y_max+1), x_min:(x_max + 1)]

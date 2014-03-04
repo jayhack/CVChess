@@ -221,7 +221,6 @@ class Board:
 
 
 
-
 	def draw_vertices (self, draw):
 		"""
 			PUBLIC: draw_squares
