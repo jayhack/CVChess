@@ -60,6 +60,7 @@ def get_P_rows (bp, ip):
 
 						])
 
+
 def get_P (board_points, image_points):
 	"""
 		Function: get_P
@@ -108,6 +109,52 @@ def find_board_image_homography (board_points, image_points):
 	BIH = assemble_BIH (V)
 	return BIH
 	
+
+
+
+
+####################################################################################################
+##############################[ --- FUNCTIONS ON BOARD SQUARES --- ]################################
+####################################################################################################
+
+def extract_polygon_region (image, polygon):
+	"""
+		Function: extract_polygon_region
+		--------------------------------
+		given a polygon (list of point tuples), returns an image 
+		masked with that polygon 
+	"""
+	#=====[ Step 1: create the mask	]=====
+	mask = np.zeros ((image.shape[0], image.shape[1]))
+	if not type(polygon) == type(np.array([])):
+		polygon = np.array(polygon)
+	cv2.fillConvexPoly(mask, polygon, 1)
+
+	#=====[ Step 2: copy over the image	]=====
+	polygon_region = np.zeros ((image.shape[0], image.shape[1]))
+	idx = (mask != 0)
+	polygon_region[idx] = image[idx]
+
+	return polygon_region
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

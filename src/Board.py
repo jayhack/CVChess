@@ -1,5 +1,6 @@
 import pickle
 from time import time
+import cv2
 import CVAnalysis
 from Square import Square
 from util import iter_algebraic_notations
@@ -40,19 +41,32 @@ class Board:
 		else:
 			self.name = name
 
-		#=====[ Step 4: set corners	]=====
+		#=====[ Step 4: set image	]=====
+		self.image = image
+
+		#=====[ Step 5: set corners	]=====
 		assert len(board_points) == len(image_points)
 		assert len(board_points) == len(sift_desc)
 		self.board_points = board_points
 		self.image_points = image_points
 		self.sift_desc = sift_desc
 
-		#=====[ Step 5: get BIH, squares ]=====
+		#=====[ Step 6: get BIH, squares ]=====
 		self.get_BIH ()
 		self.construct_squares ()
 
+		#=====[ Step 7: save this image	]=====
+		self.save ('temp.bi')
 
 
+		cv2.namedWindow ('square_region')
+		for square in self.iter_squares ():
+			print square.image_vertices
+			print square.image_region.shape
+			cv2.imshow ('square_region', square.image_region)
+			key = cv2.waitKey(30)
+			while key != 27:
+				pass
 
 
 
@@ -73,7 +87,7 @@ class Board:
 							'image':self.image,
 							'board_points': self.board_points,
 							'image_points': self.image_points,
-							'sift_desc':self.sift_desc
+							'sift_desc':self.sift_desc,
 						}, 
 						open(filename, 'w'))
 
@@ -91,6 +105,8 @@ class Board:
 		self.board_points = saved_dict['board_points']
 		self.image_points = saved_dict['image_points']
 		self.sift_desc = saved_dict ['sift_desc']
+		self.get_BIH ()
+		self.construct_squares ()
 
 
 
@@ -135,19 +151,18 @@ class Board:
 		"""
 			PRIVATE: construct_squares
 			--------------------------
-			returns a 2d-array where the (i, j)th element is a Square object
+			sets self.squares
 		"""
 		#=====[ Step 1: initialize self.squares to empty 8x8 grid	]=====
-		squares = [[None for i in range(8)] for j in range(8)]
+		self.squares = [[None for i in range(8)] for j in range(8)]
 
 		#=====[ Step 2: create a square for each algebraic notation ]=====
 		for square_an in iter_algebraic_notations ():
 
-				new_square = Square (self.BIH, square_an)
-				square_location = new_square.vertices_bc[0]
-				squares [square_location[0]][square_location[1]] = new_square
+				new_square = Square (self.image, self.BIH, square_an)
+				square_location = new_square.board_vertices[0]
+				self.squares [square_location[0]][square_location[1]] = new_square
 
-		return squares
 
 
 
@@ -186,14 +201,25 @@ class Board:
 		return '\n'.join ([title, point_count, point_corr])
 
 
-	def draw_squares (self, draw):
+	def draw_squares (self, image):
 		"""
 			PUBLIC: draw_squares
 			--------------------
-			given a draw, this will draw each of the squares in self.squares
-		"""
-		for square in self.iter_squares ():
-			square.draw_surface (draw)
+			call this function to display a version of the image with square 
+			outlines marked out
+		"""	
+		#=====[ Step 1: fill in all of the squares	]=====
+		for square in self.iter_squares():
+			image = square.draw_surface (image)
+
+		#=====[ Step 2: draw them to the screen	]=====
+		cv2.namedWindow ('board.draw_squares')
+		cv2.imshow ('board.draw_squares', image)
+		key = 0
+		while key != 27:
+			key = cv2.waitKey(30)
+
+
 
 
 	def draw_vertices (self, draw):

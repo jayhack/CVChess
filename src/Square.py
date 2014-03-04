@@ -1,4 +1,5 @@
 import numpy as np
+import cv2
 from parameters import display_parameters
 from util import board_to_image_coords, image_to_board_coords, algebraic_notation_to_board_coords
 from util import iter_algebraic_notations, iter_board_vertices
@@ -10,9 +11,13 @@ class Square:
 		-------------
 		class to hold and represent all data relevant to a single
 		board square 
+		Paramters:
+			- image: copy of the image this square is found in
+			- BIH: board-image homography
+			- algebraic notation:
 	"""
 
-	def __init__ (self, BIH, algebraic_notation):
+	def __init__ (self, image, BIH, algebraic_notation):
 		"""
 			PRIVATE: Constructor
 			--------------------
@@ -20,11 +25,18 @@ class Square:
 			_vertext_corners: list of image coordinates of this square's coordinates in 
 								clockwise order
 		"""
-		#==========[ Step 1: set parameters	]==========
-		self.an 			= algebraic_notation
-		self.vertices_bc	= algebraic_notation_to_board_coords (algebraic_notation)
-		self.vertices_ic	= [board_to_image_coords (BIH, bc) for bc in self.vertices_bc]
-		self.color 			= self.get_square_color (self.an)
+		#=====[ Step 1: algebraic notation/draw color	]=====
+		self.an = algebraic_notation
+		self.get_draw_color (self.an)
+
+		#=====[ Step 2: get vertices in board/image coords	]=====
+		self.get_vertices (BIH)
+
+		#=====[ Step 3: extract image region corresponding to this square	]=====
+		self.get_image_region (image)
+
+		#=====[ Step 3: find a histogram of the content sof self.image_region ]=====
+		# self.get_contents_histogram ()
 
 	
 	def __str__ (self):
@@ -44,10 +56,10 @@ class Square:
 
 
 	####################################################################################################
-	##############################[ --- UTILITIES --- ]#################################################
+	##############################[ --- EXTRACTING INFO FROM IMAGE --- ]################################
 	####################################################################################################
 
-	def get_square_color (self, algebraic_notation):
+	def get_draw_color (self, algebraic_notation):
 		"""
 			Function: get_square_color
 			--------------------------
@@ -56,9 +68,57 @@ class Square:
 		"""
 		tl = algebraic_notation_to_board_coords (algebraic_notation)[0]
 		if (tl[0] + tl[1]) % 2 == 1:
-			return (255, 0, 0)
+			self.draw_color = (255, 0, 0)
 		else:
-			return (0, 0, 255)
+			self.draw_color = (0, 0, 255)
+
+
+	def get_vertices (self, BIH):
+		"""
+			PRIVATE: get_vertices
+			---------------------
+			fills self.board_vertices, self.image_vertices 
+		"""
+		self.board_vertices	= algebraic_notation_to_board_coords (self.an)
+		self.image_vertices	= [board_to_image_coords (BIH, bv) for bv in self.board_vertices]
+
+
+	def get_image_region (self, image):
+		"""
+			PRIVATE: get_image_region
+			-------------------------
+			given an image, sets self.image_region with a the region of the image
+			that corresponds to this square; additionally, applies a mask to the 
+			areas outside of the square 
+		"""
+		#=====[ Step 1: get bounding box coordinates	]=====
+		x_coords, y_coords = [x[0] for x in self.image_vertices], [y[1] for y in self.image_vertices]
+		x_min, x_max = int(min(x_coords)), int(max(x_coords))
+		y_min, y_max = int(min(y_coords)), int(max(y_coords))
+
+		#=====[ Step 2: extract image region 	]=====
+		self.image_region = image[y_min:(y_max+1), x_min:(x_max + 1)]
+
+		#=====[ Step 3: create mask	]=====
+		self.image_region_mask = np.zeros (self.image_region.shape[:2])
+		cv2.fillConvexPoly (self.image_region_mask, np.array(self.image_vertices).astype(int), 1)
+
+
+
+	def get_contents_histogram (self):
+		"""
+			PRIVATE: get_contents_histogram
+			-------------------------------
+			sets self.get_contents_histogram with a histogram of the pixel values
+			that occur within the *masked* self.image_region
+		"""
+		#=====[ Step 1: get histograms for each	]=====
+		self.b_hist = cv2.calcHist(self.image_region, [0], self.image_region_mask, [256], [0, 256])
+		self.g_hist = cv2.calcHist(self.image_region, [1], self.image_region_mask, [256], [0, 256])
+		self.r_hist = cv2.calcHist(self.image_region, [2], self.image_region_mask, [256], [0, 256])		
+
+		#=====[ Step 2: concatenate to get hist_features	]=====
+		self.contents_histogram = np.concatenate ([self.b_hist, self.g_hist, self.r_hist], 0)
 
 
 
@@ -69,13 +129,14 @@ class Square:
 	##############################[ --- DRAWING --- ]###################################################
 	####################################################################################################
 
-	def draw_surface (self, draw):
+	def draw_surface (self, image):
 		"""
 			PUBLIC: draw_surface
 			--------------------
 			draws the surface of this square on the image
 		"""
-		draw.polygon (self.vertices_ic, fill=self.color)
+		cv2.fillConvexPoly(image, np.array(self.image_vertices).astype(int), self.draw_color)
+		return image
 
 
 	def draw_vertices (self, draw):
