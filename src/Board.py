@@ -2,6 +2,7 @@ import pickle
 from time import time
 import cv2
 import numpy as np
+import Chessnut
 import CVAnalysis
 from Square import Square
 from util import iter_algebraic_notations
@@ -27,10 +28,14 @@ class Board:
 			constructs a BoardImage from it's constituent data
 			or the filename of a saved one
 		"""
+		#=====[ Step 1: create a chessnut game	]=====
+
+
 		#=====[ CASE: from file ]=====
 		if filename:
 			self.construct_from_file (filename)
 	
+
 		#=====[ CASE: from BIH	]=====
 		elif not None in [image, BIH]:
 			self.construct_from_BIH (name, image, BIH)
@@ -106,6 +111,78 @@ class Board:
 		self.image_points = None 
 		self.sift_desc = None
 
+
+	####################################################################################################
+	##############################[ --- GAME MANAGEMENT --- ]###########################################
+	####################################################################################################	
+
+	def init_game (self):
+		"""
+			PRIVATE: init_game
+			------------------
+			starts the game 
+		"""
+		self.game = Chessnut.Game ()
+		self.last_frame = None
+		self.current_frame = self.image
+		self.num_frames = 0
+
+
+	def update_frames (self, new_frame):
+		"""
+			PRIVATE: update_frames 
+			----------------------
+			updates self.last_frame, self.current_frame
+		"""
+		self.last_frame = self.current_frame
+		self.current_frame = new_frame
+		self.num_frames += 1
+
+
+	def add_frame (self, new_frame):
+		"""
+			PRIVATE: add_frame
+			------------------
+			adds a frame to the current game, from which 
+			it will try to discern what move occurred 
+		"""
+		#=====[ Step 1: update frames	]=====
+		self.update_frames (new_frame)
+
+		#=====[ Step 2: get changes in occlusion	]=====
+		occlusion_changes = self.get_occlusion_changes ()
+
+		#=====[ Step 3: infer the most likely move	]=====
+		self.infer_move (occlusion_changes)
+
+
+	def get_occlusion_changes (self):
+		"""
+			PRIVATE: get_occlusion_changes
+			------------------------------
+			for each square, gets the change in probability
+		"""
+		raise NotImplementedError
+
+
+	def get_occupation_probabilities (self, image):
+		"""
+			PRIVATE: get_occupation_probabilities
+			-------------------------------------
+			given an image, calculates and returns the probability of occupation 
+			for each square
+		"""
+		raise NotImplementedError
+
+
+	def is_valid_move (self, move):
+		"""
+			PRIVATE: is_valid_move
+			----------------------
+			given a move, returns true if it is valid on the current 
+			game state 
+		"""
+		raise NotImplementedError
 
 
 

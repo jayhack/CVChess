@@ -3,6 +3,45 @@ from numpy import matrix, concatenate
 from numpy.linalg import inv, pinv, svd
 from util import homogenize, print_message, board_to_image_coords
 
+####################################################################################################
+##############################[ --- IMAGE PREPROCESSING --- ]#######################################
+####################################################################################################
+
+
+
+####################################################################################################
+##############################[ --- IMAGE DIFFERENCE --- ]##########################################
+####################################################################################################
+
+def get_image_diff (img1, img2):
+	"""
+		Function: get_image_diff
+		------------------------
+		given two images, this finds the eroded/dilated difference 
+		between them on a coarse grain.
+		NOTE: assumes both are full-size, color
+	"""
+	#=====[ Step 1: convert to gray	]=====
+	img1_gray = cv2.cvtColor (img1, cv2.COLOR_BGR2GRAY)
+	img2_gray = cv2.cvtColor (img2, cv2.COLOR_BGR2GRAY)	
+
+	#=====[ Step 2: downsample 	]=====
+	img1_small = cv2.pyrDown(cv2.pyrDown(img1_gray))
+	img2_small = cv2.pyrDown(cv2.pyrDown(img2_gray))	
+
+	#=====[ Step 3: find differnece	]=====
+	difference = img2_small - img1_small
+
+	#=====[ Step 4: erode -> dilate	]=====
+	kernel = np.ones ((4, 4), np.uint8)
+	difference_ed = cv2.dilate(cv2.erode (difference, kernel), kernel)
+
+	#=====[ Step 5: blow back up	]=====
+	return cv2.pyrUp (cv2.pyrUp (difference_ed))
+
+
+
+
 
 ####################################################################################################
 ##############################[ --- CORNER DETECTION/DESCRIPTION--- ]###############################
@@ -27,9 +66,7 @@ def get_sift_descriptors (image, kpts):
 		(keypoints, descriptors), each a list
 	"""
 	sift_descriptor = cv2.DescriptorExtractor_create('SIFT')
-	return sift_descriptor.compute (image, kpts)
-
-
+	return sift_descriptor.compute (image, kpts)[1]
 
 
 
@@ -39,7 +76,7 @@ def get_sift_descriptors (image, kpts):
 
 
 ####################################################################################################
-##############################[ --- FINDING BOARD_IMAGE HOMOGRAPHY --- ]############################
+##############################[ --- FINDING BOARD_IMAGE HOMOGRAPHY FROM POINTS --- ]################
 ####################################################################################################	
 
 def get_P_rows (bp, ip):
@@ -109,6 +146,45 @@ def find_board_image_homography (board_points, image_points):
 	BIH = assemble_BIH (V)
 	return BIH
 	
+
+
+
+####################################################################################################
+##############################[ --- AUTOMATICALLY FINDING BOARD FROM IMAGE --- ]####################
+####################################################################################################
+
+def get_corner_features (harris_corner, sift_descriptor):
+	"""
+		Function: get_corner_features
+		-----------------------------
+		given a keypoint representing a harris corner and a sift 
+		descriptor that describes it, this returns a feature 
+		vector for it 
+	"""
+	return concatenate ([[harris_corner.pt[0]], [harris_corner.pt[1]], sift_descriptor])
+
+
+def get_BIH_from_image (image, corner_classifier):
+	"""
+		Function: get_BIH_from_image
+		----------------------------
+		given an image, this will return the most likely BIH from it 
+		Note: assumes image is in its final format
+	"""
+	#=====[ Step 1: get all harris corners, sift descriptors	]=====
+	harris_corners = get_harris_corners (image)
+	sift_descriptors = get_sift_descriptors (image, harris_corners)
+
+	#=====[ Step 2: get feature representations for each hc	]====
+	features = [get_corner_features (c, d) for c, d in zip(harris_corners, sift_descriptors)]
+
+	#=====[ Step 3: get p(corner|features) for each one ]=====
+	corner_probs = corner_classifier.predict_proba (features)
+
+
+
+
+
 
 
 

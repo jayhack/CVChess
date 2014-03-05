@@ -42,15 +42,15 @@ def on_mouse(event, x, y, flags, param):
 
 	#=====[ Step 2: get corresponding points	]=====
 	print "=====[ Enter board coordinates: ]====="
-	board_x = int(raw_input ('>>> x: '))
-	board_y = int(raw_input ('>>> y: '))
-	board_point = (board_x, board_y)
+	# board_x = int(raw_input ('>>> x: '))
+	# board_y = int(raw_input ('>>> y: '))
+	# board_point = (board_x, board_y)
 	keypoint = get_closest_keypoint ((x, y), param)
 	image_point = keypoint.pt
 	print "Stored as: "
-	print "	- board_point: ", board_point
+	# print "	- board_point: ", board_point
 	print "	- image_point: ", image_point
-	corner_board_points.append (board_point)
+	# corner_board_points.append (board_point)
 	corner_image_points.append (image_point)
 	corner_keypoints.append (keypoint)
 	print_message ("ESC to exit")
