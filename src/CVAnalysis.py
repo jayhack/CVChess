@@ -251,14 +251,16 @@ def get_chessboard_lines (corners, image):
 	corners_img = np.zeros (image.shape[:2], dtype=np.uint8)
 	for corner in corners:
 		corners_img[int(corner[1])][int(corner[0])] = 255
-	lines = cv2.HoughLines (corners_img, 3, np.pi/180, 3)[0]
+	lines = cv2.HoughLines (corners_img, 3, np.pi/180, 6)[0]
 	lines = [rho_theta_to_abc (l) for l in lines]
 
 	#=====[ Step 2: get vertical lines	]=====
-	vert_lines = filter_by_slope (lines, lambda slope: (slope > 1.7))
-	v_rh = [abc_to_rho_theta (l) for l in vert_lines]
+	v_rh = [abc_to_rho_theta (l) for l in lines]
 	v_rh = avg_close_lines (v_rh)
 	vert_lines = [rho_theta_to_abc(v) for v in v_rh]
+	vert_lines = filter_by_slope (vert_lines, lambda slope: (slope > 1.7))
+	v_rh = [abc_to_rho_theta (l) for l in vert_lines]
+
 
 	#=====[ Step 3: snap points to grid ]===
 	points_grid = snap_points_to_lines (v_rh, corners)
@@ -307,7 +309,7 @@ def get_chessboard_lines (corners, image):
 	# print v_centroids
 
 	# horz_lines = [rho_theta_to_abc (l) for l in h_rh]
-	# vert_lines = [rho_theta_to_abc (l) for l in v_rh]
+	vert_lines = [rho_theta_to_abc (l) for l in v_rh]
 
 	return horz_lines, vert_lines
 
@@ -326,8 +328,20 @@ def find_board_image_homography (image, corner_classifier):
 	#=====[ Step 1: get chessboard corners	]=====
 	corners = get_chessboard_corner_candidates (image, corner_classifier)
 
-	#=====[ Step 2: get all lines	]=====
+	#=====[ Step 2: get horizontal, vertical lines	]=====
 	horz_lines, vert_lines = get_chessboard_lines (corners, image)
+
+	#=====[ Step 3: snap points to lines	]=====
+	horz_lines = [abc_to_rho_theta(l) for l in horz_lines]
+	vert_lines = [abc_to_rho_theta(l) for l in vert_lines]
+	horz_grid = snap_points_to_lines (horz_lines, corners)
+	vert_grid = snap_points_to_lines (vert_lines, corners)
+
+	for v in vert_grid:
+		print len(v)
+
+
+
 
 	return horz_lines, vert_lines
 

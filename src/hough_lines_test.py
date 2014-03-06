@@ -61,8 +61,8 @@ if __name__ == '__main__':
 	# ######[ VISUALIZE LINES	]#####
 	print horz_lines[0]
 	print vert_lines[0]
-	horz_lines = [CVAnalysis.abc_to_rho_theta (l) for l in horz_lines] 
-	vert_lines = [CVAnalysis.abc_to_rho_theta (l) for l in vert_lines]
+	# horz_lines = [CVAnalysis.abc_to_rho_theta (l) for l in horz_lines] 
+	# vert_lines = [CVAnalysis.abc_to_rho_theta (l) for l in vert_lines]
 	for rho, theta in horz_lines:
 		a = np.cos(theta)
 		b = np.sin(theta)

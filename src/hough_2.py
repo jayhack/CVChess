@@ -199,7 +199,7 @@ if __name__ == '__main__':
 			cv2.circle (image, p, 5, (0, 0, 255), -1)
 
 
-	#=====[ Step 6: hough transform on remaining points	]=====
+	# #=====[ Step 6: hough transform on remaining points	]=====
 	all_points = [p for l in points_grid for p in l]
 	corners_img = np.zeros (image.shape[:2], dtype=np.uint8)
 	for p in all_points:
