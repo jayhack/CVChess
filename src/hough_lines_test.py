@@ -1,8 +1,10 @@
+from copy import deepcopy
 import cv2
 import numpy as np
 import sklearn
 import pickle
 import CVAnalysis
+from Board import Board
 
 
 
@@ -10,10 +12,12 @@ import CVAnalysis
 if __name__ == '__main__':
 
 	#=====[ Step 1: read in image, classifier ]=====
-	image = cv2.imread ('../data/p2/1.jpg')
+	image = cv2.imread ('../data/p2/2.jpg')
 	corner_classifier = pickle.load (open('../data/classifiers/corner_classifier.clf', 'r'))
-
-	horz_lines, vert_lines = CVAnalysis.find_board_image_homography (image, corner_classifier)
+	original_image = deepcopy (image)
+	image_points, board_points = CVAnalysis.find_board_image_homography (image, corner_classifier)
+	BIH = CVAnalysis.point_correspondences_to_BIH (board_points, image_points)
+	board = Board(image=image, BIH=BIH)
 
 
 
@@ -59,30 +63,28 @@ if __name__ == '__main__':
 
 
 	# ######[ VISUALIZE LINES	]#####
-	print horz_lines[0]
-	print vert_lines[0]
 	# horz_lines = [CVAnalysis.abc_to_rho_theta (l) for l in horz_lines] 
 	# vert_lines = [CVAnalysis.abc_to_rho_theta (l) for l in vert_lines]
-	for rho, theta in horz_lines:
-		a = np.cos(theta)
-		b = np.sin(theta)
-		x0 = a*rho
-		y0 = b*rho
-		x1 = int(x0 + 1000*(-b))   # Here i have used int() instead of rounding the decimal value, so 3.8 --> 3
-		y1 = int(y0 + 1000*(a))    # But if you want to round the number, then use np.around() function, then 3.8 --> 4.0
-		x2 = int(x0 - 1000*(-b))   # But we need integers, so use int() function after that, ie int(np.around(x))
-		y2 = int(y0 - 1000*(a))
-		cv2.line(image,(x1,y1),(x2,y2),(255,0,0),2)
+	# for rho, theta in horz_lines:
+	# 	a = np.cos(theta)
+	# 	b = np.sin(theta)
+	# 	x0 = a*rho
+	# 	y0 = b*rho
+	# 	x1 = int(x0 + 1000*(-b))   # Here i have used int() instead of rounding the decimal value, so 3.8 --> 3
+	# 	y1 = int(y0 + 1000*(a))    # But if you want to round the number, then use np.around() function, then 3.8 --> 4.0
+	# 	x2 = int(x0 - 1000*(-b))   # But we need integers, so use int() function after that, ie int(np.around(x))
+	# 	y2 = int(y0 - 1000*(a))
+	# 	cv2.line(image,(x1,y1),(x2,y2),(255,0,0),2)
 
-	for rho, theta in vert_lines:
-		a = np.cos(theta)
-		b = np.sin(theta)
-		x0 = a*rho
-		y0 = b*rho
-		x1 = int(x0 + 1000*(-b))   # Here i have used int() instead of rounding the decimal value, so 3.8 --> 3
-		y1 = int(y0 + 1000*(a))    # But if you want to round the number, then use np.around() function, then 3.8 --> 4.0
-		x2 = int(x0 - 1000*(-b))   # But we need integers, so use int() function after that, ie int(np.around(x))
-		y2 = int(y0 - 1000*(a))
-		cv2.line(image,(x1,y1),(x2,y2),(0,255,0),2)
-	cv2.namedWindow ('houghLines')
-	cv2.imshow ('hoeughLines', image)
+	# for rho, theta in vert_lines:
+	# 	a = np.cos(theta)
+	# 	b = np.sin(theta)
+	# 	x0 = a*rho
+	# 	y0 = b*rho
+	# 	x1 = int(x0 + 1000*(-b))   # Here i have used int() instead of rounding the decimal value, so 3.8 --> 3
+	# 	y1 = int(y0 + 1000*(a))    # But if you want to round the number, then use np.around() function, then 3.8 --> 4.0
+	# 	x2 = int(x0 - 1000*(-b))   # But we need integers, so use int() function after that, ie int(np.around(x))
+	# 	y2 = int(y0 - 1000*(a))
+	# 	cv2.line(image,(x1,y1),(x2,y2),(0,255,0),2)
+	# cv2.namedWindow ('houghLines')
+	# cv2.imshow ('hoeughLines', image)

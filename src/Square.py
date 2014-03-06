@@ -155,16 +155,15 @@ class Square:
 		return image
 
 
-	def draw_vertices (self, draw):
+	def draw_vertices (self, image):
 		"""
 			PUBLIC: draw_vertices
 			---------------------
 			draws the verties of this square on the image
 		"""
-		for vertex in self.vertices_ic:
-			top_left = (vertex[0] - 8, vertex[1] - 8)
-			bottom_right = (vertex[0] + 8, vertex[1] + 8)
-			draw.rectangle ([top_left, bottom_right], fill=(0, 0, 255))
+		for vertex in self.image_vertices:
+			print vertex
+			cv2.circle (image, (int(vertex[0]), int(vertex[1])), 5, (0, 0, 255))
 
 
 

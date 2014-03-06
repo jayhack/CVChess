@@ -375,19 +375,22 @@ class Board:
 		#=====[ Step 2: draw them to the screen	]=====
 		cv2.namedWindow ('board.draw_squares')
 		cv2.imshow ('board.draw_squares', image)
-		key = 0
-		while key != 27:
-			key = cv2.waitKey(30)
 
 
-	def draw_vertices (self, draw):
+	def draw_vertices (self, image):
 		"""
 			PUBLIC: draw_squares
 			--------------------
 			given a draw, this will draw each of the squares in self.squares
 		"""
+		#=====[ Step 1: draw all vertices	]=====
 		for square in self.iter_squares ():
-			square.draw_vertices (draw)
+			square.draw_vertices (image)
+
+		#=====[ Step 2: draw them to the screen	]=====
+		cv2.namedWindow ('board.draw_vertices')
+		cv2.imshow ('board.draw_vertices', image)
+
 
 
 

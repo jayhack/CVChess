@@ -275,7 +275,6 @@ def get_chessboard_lines (corners, image):
 	horz_lines = filter_by_slope (lines, lambda slope: (slope < 0.1))
 	lines = [abc_to_rho_theta(l) for l in horz_lines]
 	horz_lines = avg_close_lines_2 (lines)
-	print horz_lines[0]
 	horz_lines = [rho_theta_to_abc(l) for l in horz_lines]
 
 	# print '=====[ 	X intercepts]====='
@@ -315,6 +314,87 @@ def get_chessboard_lines (corners, image):
 
 
 
+def sort_point_grid (grid, sort_coord):
+	"""
+		Function: sort_point_grid
+		-------------------------
+		given a grid and a coordinate to sort by, this returns
+		a sorted version
+	"""
+	#=====[ Step 1: get mean sort coords	]=====
+	mean_sort_coords = []
+	for i in range(len(grid)):
+		mean_sort_coord = np.mean([x[sort_coord] for x in grid[i]])
+		mean_sort_coords.append (mean_sort_coord)
+	mean_sort_coords = np.array (mean_sort_coords)
+
+	#=====[ Step 2: make sort grid	]=====
+	sort_grid = [(g, m) for g, m in zip(grid, mean_sort_coords)]
+	sort_grid.sort (key=lambda x: x[1])
+	grid = [g for g, m in sort_grid]
+
+	return grid
+
+def get_line (point, grid):
+
+	for index, line in enumerate(grid):
+		if point in line:
+			return index
+
+	assert False
+
+
+
+
+def extract_point_correspondences (horz_grid, vert_grid, grid_points):
+	"""
+		Function: extract_point_correspondences
+		---------------------------------------
+		given a horizontal grid and a vertical grid, this returns a list 
+		of point correspondences
+	"""
+	image_points = []
+	board_points = []
+	for image_point in grid_points:
+		board_x = 2 + get_line (image_point, vert_grid)
+		board_y = get_line (image_point, horz_grid)
+
+		image_points.append (image_point)
+		board_points.append ((board_x, board_y))
+
+	return image_points, board_points
+
+
+def find_point_correspondences (horz_lines, vert_lines, corners):
+	"""
+		Function: find_point_correspondences
+		------------------------------------
+		given horizontal lines, vertical lines (in abc) and a set of corners,
+		this will return image_points, board_points, where the 
+		two correspond
+	"""
+	#=====[ Step 1: snap points to grid	]=====
+	horz_lines = [abc_to_rho_theta(l) for l in horz_lines]
+	vert_lines = [abc_to_rho_theta(l) for l in vert_lines]
+	horz_grid = snap_points_to_lines (horz_lines, corners)
+	vert_grid = snap_points_to_lines (vert_lines, corners)
+
+	#=====[ Step 2: get all points that are on each grid	]=====
+	all_horz_points = [p for h in horz_grid for p in h]
+	all_vert_points = [p for v in vert_grid for p in v]
+	grid_points = list(set(all_horz_points).intersection(set(all_vert_points)))
+
+	#=====[ Step 3: create and sort grids ]=====
+	horz_grid = snap_points_to_lines (horz_lines, grid_points)
+	vert_grid = snap_points_to_lines (vert_lines, grid_points)
+	horz_grid = sort_point_grid (horz_grid, 1)
+	vert_grid = sort_point_grid (vert_grid, 0)
+
+	#=====[ Step 4: extract point correspondences	]=====
+	return extract_point_correspondences (horz_grid, vert_grid, grid_points)
+
+
+
 def find_board_image_homography (image, corner_classifier):
 	"""
 		Function: find_board_image_homography
@@ -328,22 +408,13 @@ def find_board_image_homography (image, corner_classifier):
 	#=====[ Step 1: get chessboard corners	]=====
 	corners = get_chessboard_corner_candidates (image, corner_classifier)
 
-	#=====[ Step 2: get horizontal, vertical lines	]=====
+	#=====[ Step 2: get horizontal, vertical lines (as abc)	]=====
 	horz_lines, vert_lines = get_chessboard_lines (corners, image)
 
-	#=====[ Step 3: snap points to lines	]=====
-	horz_lines = [abc_to_rho_theta(l) for l in horz_lines]
-	vert_lines = [abc_to_rho_theta(l) for l in vert_lines]
-	horz_grid = snap_points_to_lines (horz_lines, corners)
-	vert_grid = snap_points_to_lines (vert_lines, corners)
+	#=====[ Step 4: find point correspondences	]=====
+	image_points, board_points = find_point_correspondences (horz_lines, vert_lines, corners)
 
-	for v in vert_grid:
-		print len(v)
-
-
-
-
-	return horz_lines, vert_lines
+	return image_points, board_points
 
 
 
