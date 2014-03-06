@@ -1,3 +1,4 @@
+import numpy as np
 from numpy import matrix, array, dot, transpose
 from numpy.linalg import inv
 
@@ -39,6 +40,77 @@ def extract_col (mat, col):
 		given a matrix and a col, returns the row as a numpy array 
 	"""
 	return np.asarray (mat[:, col])
+
+
+def euclidean_distance (p1, p2):
+	"""
+		Function: euclidean_distance 
+		----------------------------
+		given two points as 2-tuples, returns euclidean distance 
+		between them
+	"""
+	assert ((len(p1) == len(p2)) and (len(p1) == 2))
+	return np.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
+
+
+def get_centroid (points):
+	"""
+		Function: get_centroid 
+		----------------------
+		given a list of points represented 
+		as 2-tuples, returns their centroid 
+	"""
+	return (np.mean([p[0] for p in points]), np.mean([p[1] for p in points]))
+
+
+def rho_theta_to_abc (line):
+	"""
+		Function: rho_theta_to_abc
+		--------------------------
+		given a line represented as (rho, theta),
+		this returns the triplet (a, b, c) such that 
+		ax + by + c = 0 for all points (x, y) on the 
+		line
+	"""
+	rho, theta = line[0], line[1]
+	return (np.cos(theta), np.sin(theta), -rho)
+
+
+def abc_to_rho_theta (line):
+	"""
+		Function: abc_to_rho_theta
+		--------------------------
+		inverse of rho_theta_to_abc
+	"""
+	a, b, c = line[0], line[1], line[2]
+	rho, theta = -c, np.arccos(a)
+	return rho, theta
+
+
+def get_screen_bottom_intercept (l, y_screen_bottom):
+	"""
+		Function: get_screen_bottom_intercept
+		-------------------------------------
+		given lines in (a, b, c), this returns their intercept 
+		coordinates on the bottom of the screen 
+	"""
+	return (-l[1]/l[0])*y_screen_bottom - (l[2]/l[0])
+
+
+
+def get_line_point_distance (line, point):
+	"""
+		Function: get_line_point_distance 
+		---------------------------------
+		returns the distance from the point to the line 
+		assumes line is represented as (rho,theta), point 
+		is (x, y)
+	"""
+	assert len(line) == 2
+	assert len(point) == 2
+	a, b, c = rho_theta_to_abc (line)
+	x, y = point[0], point[1]
+	return np.abs(a*x + b*y + c)/np.sqrt(a**2 + b**2)
 
 
 

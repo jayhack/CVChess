@@ -1,12 +1,9 @@
 import cv2
+import numpy as np
 from numpy import matrix, concatenate
 from numpy.linalg import inv, pinv, svd
-from util import homogenize, print_message, board_to_image_coords
-
-####################################################################################################
-##############################[ --- IMAGE PREPROCESSING --- ]#######################################
-####################################################################################################
-
+from sklearn.cluster import KMeans
+from util import *
 
 
 ####################################################################################################
@@ -42,7 +39,6 @@ def get_image_diff (img1, img2):
 
 
 
-
 ####################################################################################################
 ##############################[ --- CORNER DETECTION/DESCRIPTION--- ]###############################
 ####################################################################################################
@@ -72,11 +68,273 @@ def get_sift_descriptors (image, kpts):
 
 
 
+####################################################################################################
+#################[ --- FINDING POINT CORRESPONDENCES FROM IMAGE --- ]###############################
+####################################################################################################
+
+def cluster_points (points, cluster_dist=7):
+	"""
+		Function: cluster_points
+		------------------------
+		given a list of points and the distance between them for a cluster,
+		this will return a list of points with clusters compressed 
+		to their centroid 
+	"""
+	#=====[ Step 1: init old/new points	]=====
+	old_points = np.array (points)
+	new_points = []
+
+	#=====[ ITERATE OVER OLD_POINTS	]=====
+	while len(old_points) > 1:
+		p1 = old_points [0]
+		distances = np.array([euclidean_distance (p1, p2) for p2 in old_points])
+		idx = (distances < cluster_dist)
+		points_cluster = old_points[idx]
+		centroid = get_centroid (points_cluster)
+		new_points.append (centroid)
+		old_points = old_points[np.invert(idx)]
+
+	return new_points
+
+
+def cluster_lines (lines, num_clusters):
+	"""
+		Function: cluster_lines
+		-----------------------
+		given a list of lines represented as (a, b, c), this will
+		this will return a list of lines with clusters compressed 
+		to their centroid 
+		comparison_function: returns true if two lines are in a cluster
+	"""
+
+
+	#=====[ Step 1: init old_lines, new_lines	]=====
+	old_lines = np.array (lines)
+	new_lines = []
+
+	#=====[ ITERATE OVER OLD_LINES	]=====
+	while len(old_lines) > 0:
+
+		l1 = old_lines [0]
+		idx = np.array([comparison_function(l1, l2) for l2 in old_lines])
+		lines_cluster = old_lines[idx]
+		new_line = get_centroid (lines_cluster)
+		new_lines.append (new_line)
+		old_lines = old_lines[np.invert(idx)]
+
+	return new_lines
+
+
+def get_chessboard_corner_candidates (image, corner_classifier):
+	"""
+		Function: get_chessboard_corner_candidates
+		------------------------------------------
+		given an image, returns a list of points (represented as tuples)
+		that correspond to possible chessboard corners 
+	"""
+	#=====[ Step 1: get corners/sift descriptors	]=====
+	hc = get_harris_corners(image)
+	sd = get_sift_descriptors (image, hc)
+
+	#=====[ Step 2: make predictions	]=====
+	predictions = corner_classifier.predict (sd)
+	idx = (predictions == 1)
+	chessboard_corners = [c.pt for c, i in zip(hc, idx) if i]
+
+	#=====[ Step 3: cluster corners	]=====
+	chessboard_corners = cluster_points (chessboard_corners)
+
+	return chessboard_corners
+
+
+def filter_by_slope (lines, slope_predicate):
+	"""
+		Function: filter_by_slope
+		-------------------------
+		given a list of lines in (a, b, c) format, this will return 
+		another list of lines in same format where all pass 'true' on 
+		'slope_predicate'
+	"""
+	slopes = [abs(l[0]/l[1]) if l[1] != 0 else 10000 for l in lines]
+	idx = np.array([slope_predicate (s) for s in slopes])
+	return [l for l, i in zip(lines, idx) if i]
+
+
+def avg_close_lines (lines_list):
+	"""
+		Function: avg_close_points 
+		--------------------------
+		given a list of keypoints, this returns another list of 
+		(x, y) pairs for points that are very close 
+	"""
+	lines = [(rho, theta) for rho, theta in lines_list]
+
+	#=====[ Step 1: get points out of each one	]=====
+	old_lines = np.array(lines)
+
+	#=====[ Step 2: get new_points	]=====
+	new_lines = []
+	while len(old_lines	) > 1:
+		l1 = old_lines [0]
+		distances = np.array([abs(l1[1] - l2[1]) for l2 in old_lines])
+		idx = (distances < 0.1)
+		lines_cluster = old_lines[idx]
+		new_line = get_centroid (lines_cluster)
+		new_lines.append (new_line)
+		old_lines = old_lines[np.invert(idx)]
+
+	return new_lines
+
+
+def avg_close_lines_2 (lines_list):
+	"""
+		Function: avg_close_points 
+		--------------------------
+		given a list of keypoints, this returns another list of 
+		(x, y) pairs for points that are very close 
+	"""
+	lines = [(rho, theta) for rho, theta in lines_list]
+
+	#=====[ Step 1: get points out of each one	]=====
+	old_lines = np.array(lines)
+
+	#=====[ Step 2: get new_points	]=====
+	new_lines = []
+	while len(old_lines	) > 1:
+		l1 = old_lines [0]
+		distances = np.array([abs(l1[0] - l2[0]) for l2 in old_lines])
+		idx = (distances < 10)
+		lines_cluster = old_lines[idx]
+		new_line = get_centroid (lines_cluster)
+		new_lines.append (new_line)
+		old_lines = old_lines[np.invert(idx)]
+
+	return new_lines
+
+
+def snap_points_to_lines (lines, points, max_distance=8):
+	"""
+		Function: snap_points_to_lines
+		------------------------------
+		given a list of lines and a list of points, this will
+		return a 2d list where the i, jth element is the jth point 
+		that falls on the ith line
+		max_distance = maximum distance a point can be from a line 
+		before it no longer is considered part of it.
+	"""
+	#=====[ Step 1: initialize points grid	]=====
+	grid = [[] for line in lines]
+
+	#=====[ Step 2: iterate through corners, adding to lines	]=====
+	for point in points:
+		distances = np.array([get_line_point_distance (line, point) for line in lines])
+		if np.min (distances) < max_distance:
+			line_index = np.argmin(distances)
+			grid[line_index].append (point)
+
+	#=====[ Step 3: sort each one by y coordinate	]=====
+	for i in range(len(grid)):
+		grid[i].sort (key=lambda x: x[0])
+
+	return grid
+
+
+def get_chessboard_lines (corners, image):
+	"""
+		Function: get_chessboard_lines
+		------------------------------
+		given a list of corners represented as tuples, this returns 
+		(horizontal_lines, vertical_lines) represented as (a, b, c)
+		pairs 
+	"""
+	#=====[ Step 1: get lines via Hough transform on corners ]=====
+	corners_img = np.zeros (image.shape[:2], dtype=np.uint8)
+	for corner in corners:
+		corners_img[int(corner[1])][int(corner[0])] = 255
+	lines = cv2.HoughLines (corners_img, 3, np.pi/180, 3)[0]
+	lines = [rho_theta_to_abc (l) for l in lines]
+
+	#=====[ Step 2: get vertical lines	]=====
+	vert_lines = filter_by_slope (lines, lambda slope: (slope > 1.7))
+	v_rh = [abc_to_rho_theta (l) for l in vert_lines]
+	v_rh = avg_close_lines (v_rh)
+	vert_lines = [rho_theta_to_abc(v) for v in v_rh]
+
+	#=====[ Step 3: snap points to grid ]===
+	points_grid = snap_points_to_lines (v_rh, corners)
+
+	#=====[ Step 6: hough transform on points in grid to get horizontal lines	]=====
+	all_points = [p for l in points_grid for p in l]
+	corners_img = np.zeros (image.shape[:2], dtype=np.uint8)
+	for p in all_points:
+		corners_img[int(p[1])][int(p[0])] = 255
+	lines = cv2.HoughLines (corners_img, 3, np.pi/180, 2)[0]
+	lines = [rho_theta_to_abc (l) for l in lines]
+	horz_lines = filter_by_slope (lines, lambda slope: (slope < 0.1))
+	lines = [abc_to_rho_theta(l) for l in horz_lines]
+	horz_lines = avg_close_lines_2 (lines)
+	print horz_lines[0]
+	horz_lines = [rho_theta_to_abc(l) for l in horz_lines]
+
+	# print '=====[ 	X intercepts]====='
+	# x_intercepts = [[get_screen_bottom_intercept (l, image.shape[0])] for l in vert_lines]
+
+	# print x_intercepts
+
+	# km_h = KMeans(n_clusters=9)
+	# km_v = KMeans(n_clusters=5)
+
+	# h_idx = km_h.fit_predict (h_rhos)
+	# v_idx = km_v.fit_predict (x_intercepts)
+
+	# h_centroids = []
+	# for i in range(9):
+	# 	print "===[ cluster ", i, " ]==="
+	# 	points = np.array([h for h, j in zip(h_rh, h_idx) if (j == i)])
+	# 	print points
+	# 	print np.mean (points, axis=0)
+	# 	h_centroids.append (np.mean (points, axis=0))
+
+	# v_centroids = []
+	# for i in range(5):
+		# print "===[ cluster ", i, " ]==="
+		# points = np.array([h for h, j in zip(vert_lines, v_idx) if (j == i)])
+		# ba_ratio = np.divide(points[:, 1], points[:, 0])
+		# ca_ratio = np.divide(points[:, 2], points[:, 0])
+		# v_centroids.append ((np.mean(ba_ratio), np.mean(ca_ratio)))
+
+	# v_centroids = [(1, v[0],  v[1]) for v in v_centroids]
+	# print v_centroids
+
+	# horz_lines = [rho_theta_to_abc (l) for l in h_rh]
+	# vert_lines = [rho_theta_to_abc (l) for l in v_rh]
+
+	return horz_lines, vert_lines
+
+
+
+def find_board_image_homography (image, corner_classifier):
+	"""
+		Function: find_board_image_homography
+		-------------------------------------
+		given an image presumed to be of a chessboard near the bottom
+		of the screen, this function returns the homography relating 
+		board coordinates to image coordinates
+		corner_classifier is an sklearn classifier that maps points 
+		to {0,1}, where 1 means it is a chessboard corner
+	"""
+	#=====[ Step 1: get chessboard corners	]=====
+	corners = get_chessboard_corner_candidates (image, corner_classifier)
+
+	#=====[ Step 2: get all lines	]=====
+	horz_lines, vert_lines = get_chessboard_lines (corners, image)
+
+	return horz_lines, vert_lines
 
 
 
 ####################################################################################################
-##############################[ --- FINDING BOARD_IMAGE HOMOGRAPHY FROM POINTS --- ]################
+#################[ --- FINDING BOARD_IMAGE HOMOGRAPHY FROM POINTS CORRESPONDENCES --- ]#############
 ####################################################################################################	
 
 def get_P_rows (bp, ip):
@@ -123,10 +381,10 @@ def assemble_BIH (V):
 	return concatenate ([vt[0:3].T, vt[3:6].T, vt[6:9].T], 0);
 
 
-def find_board_image_homography (board_points, image_points):
+def point_correspondences_to_BIH (board_points, image_points):
 	"""
-		Function: find_board_homography
-		-------------------------------
+		Function: point_correspondences_to_BIH
+		--------------------------------------
 		board_image: a BoardImage object *containing point correspondences*
 		returns: matrix BIH such that
 			BIH * pb = pi
