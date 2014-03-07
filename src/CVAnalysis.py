@@ -414,7 +414,8 @@ def find_board_image_homography (image, corner_classifier):
 	#=====[ Step 4: find point correspondences	]=====
 	image_points, board_points = find_point_correspondences (horz_lines, vert_lines, corners)
 
-	return image_points, board_points
+	#=====[ Step 5: convert to BIH	]=====
+	return point_correspondences_to_BIH (board_points, image_points)
 
 
 

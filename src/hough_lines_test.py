@@ -12,12 +12,10 @@ from Board import Board
 if __name__ == '__main__':
 
 	#=====[ Step 1: read in image, classifier ]=====
-	image = cv2.imread ('../data/p2/2.jpg')
+	first_frame = cv2.imread ('../data/p2/2.jpg')
 	corner_classifier = pickle.load (open('../data/classifiers/corner_classifier.clf', 'r'))
-	original_image = deepcopy (image)
-	image_points, board_points = CVAnalysis.find_board_image_homography (image, corner_classifier)
-	BIH = CVAnalysis.point_correspondences_to_BIH (board_points, image_points)
-	board = Board(image=image, BIH=BIH)
+	board = Board(corner_classifier=corner_classifier)
+	board.add_frame (first_frame)
 
 
 

@@ -1,5 +1,6 @@
 import pickle
 from time import time
+from copy import deepcopy
 import cv2
 import numpy as np
 import Chessnut
@@ -20,34 +21,196 @@ class Board:
 			- squares: list of SquareImage 
 
 	"""
-
-	def __init__ (self, name=None, image=None, BIH=None, board_points=None, image_points=None, sift_desc=None, filename=None):
+	def __init__ (self, corner_classifier=None):
 		"""
-			PRIVATE: Constructor
-			--------------------
-			constructs a BoardImage from it's constituent data
-			or the filename of a saved one
+			PUBLIC: Constructor 
+			-------------------
+			initializes all variables 
 		"""
-		#=====[ Step 1: create a chessnut game	]=====
+		self.game 				= Chessnut.Game ()
+		self.last_frame 		= None
+		self.current_frame		= None
+		self.num_frames 		= 0
+		self.corner_classifier	= corner_classifier
 
 
-		#=====[ CASE: from file ]=====
-		if filename:
-			self.construct_from_file (filename)
-	
-
-		#=====[ CASE: from BIH	]=====
-		elif not None in [image, BIH]:
-			self.construct_from_BIH (name, image, BIH)
 
 
-		#=====[ CASE: from points	]=====
+
+
+
+
+
+
+
+
+	####################################################################################################
+	##############################[ --- GAME MANAGEMENT --- ]###########################################
+	####################################################################################################	
+
+	def update_frames (self, new_frame):
+		"""
+			PRIVATE: update_frames 
+			----------------------
+			updates self.last_frame, self.current_frame
+		"""
+		#=====[ Step 1: rotate out frames	]=====
+		self.last_frame = self.current_frame
+		self.current_frame = new_frame
+		self.num_frames += 1
+
+
+
+	def add_frame (self, new_frame):
+		"""
+			PRIVATE: add_frame
+			------------------
+			adds a frame to the current game, from which 
+			it will try to discern what move occurred 
+		"""
+		#=====[ Step 1: update frames	]=====
+		self.update_frames (new_frame)
+
+		#=====[ CASE: first frame ]=====
+		if self.num_frames == 1:
+
+			self.find_BIH ()
+			self.construct_squares ()
+
+		#=====[ CASE: subsequent frames	]=====
 		else:
-			if None in [name, image, board_points, image_points]:
-				raise StandardError ("Must enter all data arguments or a filename")
-			else:
-				self.construct_from_points (name, image, board_points, image_points, sift_desc)
+			pass
+			#=====[ Step 2: get changes in occlusion	]=====
+			# occlusion_changes = self.get_occlusion_changes ()
 
+			#=====[ Step 3: infer the most likely move	]=====
+			# self.infer_move (occlusion_changes)
+
+
+	def get_occlusion_changes (self):
+		"""
+			PRIVATE: get_occlusion_changes
+			------------------------------
+			for each square, gets the change in probability
+		"""
+		raise NotImplementedError
+
+
+	def get_occupation_probabilities (self, image):
+		"""
+			PRIVATE: get_occupation_probabilities
+			-------------------------------------
+			given an image, calculates and returns the probability of occupation 
+			for each square
+		"""
+		raise NotImplementedError
+
+
+	def is_valid_move (self, move):
+		"""
+			PRIVATE: is_valid_move
+			----------------------
+			given a move, returns true if it is valid on the current 
+			game state 
+		"""
+		raise NotImplementedError
+
+
+
+
+
+
+
+
+	####################################################################################################
+	##############################[ --- CV TASKS --- ]##################################################
+	####################################################################################################
+
+	def find_BIH (self):
+		"""
+			PRIVATE: find_BIH
+			----------------
+			finds the board-image homography from self.current_frame, which is assumed 
+			to be the first frame
+		"""
+		assert self.corner_classifier 
+		self.BIH = CVAnalysis.find_board_image_homography (self.current_frame, self.corner_classifier)
+
+
+	def construct_squares (self):
+		"""
+			PRIVATE: construct_squares
+			--------------------------
+			sets self.squares
+		"""
+		#=====[ Step 1: initialize self.squares to empty 8x8 grid	]=====
+		self.squares = [[None for i in range(8)] for j in range(8)]
+
+		#=====[ Step 2: create a square for each algebraic notation ]=====
+		for square_an in iter_algebraic_notations ():
+
+				new_square = Square (self.current_frame, self.BIH, square_an)
+				square_location = new_square.board_vertices[0]
+				self.squares [square_location[0]][square_location[1]] = new_square
+
+
+
+
+
+
+
+
+	####################################################################################################
+	##############################[ --- DATA MANAGEMENT --- ]###########################################
+	####################################################################################################	
+
+	def parse_occlusions (self, filename):
+		"""
+			PRIVATE: parse_occlusions
+			-------------------------
+			given a filename containing occlusions, returns it in 
+			list format 
+		"""
+		return [line.strip().split(' ') for line in open(filename, 'r').readlines ()]
+
+
+	def add_occlusions (self, filename):
+		"""
+			PUBLIC: add_occlusions
+			----------------------
+			given the name of a file containing occlusions, this will 
+			add them to each of the squares 
+		"""
+		#=====[ Step 1: parse occlusions	]=====
+		occlusions = self.parse_occlusions (filename)
+
+		#=====[ Step 2: add them one-by-one	]=====
+		for i in range(8):
+			for j in range(8):
+				self.squares [i][j].add_occlusion (occlusions[i][j])
+
+
+	def get_occlusion_features (self):
+		"""
+			PUBLIC: get_occlusions
+			----------------------
+			returns X, y
+			X: np.mat where each row is a feature vector representing a square
+			y: list of labels for X
+		"""
+		X = [s.get_occlusion_features () for s in self.iter_squares ()]
+		y = [s.occlusion for s in self.iter_squares ()]
+		return np.array (X), np.array(y)
+
+
+
+
+
+
+
+	####################################################################################################
+	##############################[ --- CONSTRUCTING FROM OBJECTS --- ]#################################
+	####################################################################################################	
 
 	def construct_from_file (self, filename):
 		"""
@@ -112,126 +275,6 @@ class Board:
 		self.sift_desc = None
 
 
-	####################################################################################################
-	##############################[ --- GAME MANAGEMENT --- ]###########################################
-	####################################################################################################	
-
-	def init_game (self):
-		"""
-			PRIVATE: init_game
-			------------------
-			starts the game 
-		"""
-		self.game = Chessnut.Game ()
-		self.last_frame = None
-		self.current_frame = self.image
-		self.num_frames = 0
-
-
-	def update_frames (self, new_frame):
-		"""
-			PRIVATE: update_frames 
-			----------------------
-			updates self.last_frame, self.current_frame
-		"""
-		self.last_frame = self.current_frame
-		self.current_frame = new_frame
-		self.num_frames += 1
-
-
-	def add_frame (self, new_frame):
-		"""
-			PRIVATE: add_frame
-			------------------
-			adds a frame to the current game, from which 
-			it will try to discern what move occurred 
-		"""
-		#=====[ Step 1: update frames	]=====
-		self.update_frames (new_frame)
-
-		#=====[ Step 2: get changes in occlusion	]=====
-		occlusion_changes = self.get_occlusion_changes ()
-
-		#=====[ Step 3: infer the most likely move	]=====
-		self.infer_move (occlusion_changes)
-
-
-	def get_occlusion_changes (self):
-		"""
-			PRIVATE: get_occlusion_changes
-			------------------------------
-			for each square, gets the change in probability
-		"""
-		raise NotImplementedError
-
-
-	def get_occupation_probabilities (self, image):
-		"""
-			PRIVATE: get_occupation_probabilities
-			-------------------------------------
-			given an image, calculates and returns the probability of occupation 
-			for each square
-		"""
-		raise NotImplementedError
-
-
-	def is_valid_move (self, move):
-		"""
-			PRIVATE: is_valid_move
-			----------------------
-			given a move, returns true if it is valid on the current 
-			game state 
-		"""
-		raise NotImplementedError
-
-
-
-
-	####################################################################################################
-	##############################[ --- DATA MANAGEMENT --- ]###########################################
-	####################################################################################################	
-
-	def parse_occlusions (self, filename):
-		"""
-			PRIVATE: parse_occlusions
-			-------------------------
-			given a filename containing occlusions, returns it in 
-			list format 
-		"""
-		return [line.strip().split(' ') for line in open(filename, 'r').readlines ()]
-
-
-	def add_occlusions (self, filename):
-		"""
-			PUBLIC: add_occlusions
-			----------------------
-			given the name of a file containing occlusions, this will 
-			add them to each of the squares 
-		"""
-		#=====[ Step 1: parse occlusions	]=====
-		occlusions = self.parse_occlusions (filename)
-
-		#=====[ Step 2: add them one-by-one	]=====
-		for i in range(8):
-			for j in range(8):
-				self.squares [i][j].add_occlusion (occlusions[i][j])
-
-
-	def get_occlusion_features (self):
-		"""
-			PUBLIC: get_occlusions
-			----------------------
-			returns X, y
-			X: np.mat where each row is a feature vector representing a square
-			y: list of labels for X
-		"""
-		X = [s.get_occlusion_features () for s in self.iter_squares ()]
-		y = [s.occlusion for s in self.iter_squares ()]
-		return np.array (X), np.array(y)
-
-
-
-
 
 	####################################################################################################
 	##############################[ --- LOADING/SAVING --- ]############################################
@@ -288,46 +331,6 @@ class Board:
 		for i in range(8):
 			for j in range(8):
 				yield self.squares [i][j]
-
-
-
-
-
-
-	####################################################################################################
-	##############################[ --- CV TASKS --- ]##################################################
-	####################################################################################################
-
-	def get_BIH (self):
-		"""
-			PRIVATE: get_BIH
-			----------------
-			finds the board-image homography 
-		"""
-		self.BIH = CVAnalysis.find_board_image_homography (self.board_points, self.image_points)
-
-
-	def construct_squares (self):
-		"""
-			PRIVATE: construct_squares
-			--------------------------
-			sets self.squares
-		"""
-		#=====[ Step 1: initialize self.squares to empty 8x8 grid	]=====
-		self.squares = [[None for i in range(8)] for j in range(8)]
-
-		#=====[ Step 2: create a square for each algebraic notation ]=====
-		for square_an in iter_algebraic_notations ():
-
-				new_square = Square (self.image, self.BIH, square_an)
-				square_location = new_square.board_vertices[0]
-				self.squares [square_location[0]][square_location[1]] = new_square
-
-
-
-
-
-
 
 
 
