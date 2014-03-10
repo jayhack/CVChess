@@ -276,7 +276,6 @@ def evaluate_homography (horz_indices, vert_indices, horz_points_grid, vert_poin
 	print "vert_indices: ", vert_indices
 
 
-
 	#=====[ Step 1: find point correspondences	]=====
 	for i in range (len(horz_points_grid)):
 		for j in range(len(vert_points_grid)):
@@ -294,10 +293,6 @@ def evaluate_homography (horz_indices, vert_indices, horz_points_grid, vert_poin
 
 	#=====[ Step 2: compute a homography from it	]=====
 	BIH = point_correspondences_to_BIH (board_points, image_points)
-	if (horz_indices[0] == 0) and (vert_indices[0] == 1):
-		print "=====[ (this should be the correct one) ]====="
-		for bp, ip in  zip(board_points, image_points):
-			print bp, ": ", ip
 
 	#=====[ Step 3: compute score	]=====
 	score = compute_inliers (BIH, corners)
@@ -611,32 +606,6 @@ def sample_from_quadrants (quadrants):
 				choice(quadrants['tl']), choice(quadrants['tr']), 
 				choice(quadrants['bl']), choice(quadrants['br'])
 			]
-
-def is_BIH_inlier (all_BIH_ip, corner, pix_dist=6):
-	"""
-		Function: is_BIH_inlier
-		-----------------------
-		given the set of BIH image points and a corner,
-		returns true if the corner is within pix_dist
-		of any BIH ip
-	"""
-	return any([(euclidean_distance(ip, corner) <= pix_dist) for ip in all_BIH_ip])
-
-
-def compute_inliers (BIH, corners):
-	"""
-		Function: compute_inliers
-		-------------------------
-		given a board-image homography and a set of all corners,
-		this will return the number that are inliers 
-	"""
-	#=====[ Step 1: get a set of all image points for vertices of board coords	]=====
-	all_BIH_ip = [board_to_image_coords (BIH, bp) for bp in all_board_points]
-
-	#=====[ Step 2: get booleans for each corner being an inlier	]=====
-	num_inliers = sum ([is_BIH_inlier (all_BIH_ip, corner) for corner in corners])
-	return num_inliers
-
 
 def messy_grid_ransac (messy_horz_grid, messy_vert_grid, all_corners, image, num_iterations=10000):
 	"""
