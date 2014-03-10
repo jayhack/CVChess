@@ -255,6 +255,10 @@ def compute_inliers (BIH, corners):
 		this will return the number that are inliers 
 	"""
 	#=====[ Step 1: get a set of all image points for vertices of board coords	]=====
+	all_board_points = []
+	for i in range(9):
+		for j in range(9):
+			all_board_points.append ((i, j))
 	all_BIH_ip = [board_to_image_coords (BIH, bp) for bp in all_board_points]
 
 	#=====[ Step 2: get booleans for each corner being an inlier	]=====
@@ -316,8 +320,7 @@ def find_BIH (horz_points_grid, horz_indices, vert_points_grid, vert_indices, co
 	vert_indices = vert_indices - vert_indices[0]
 
 	#=====[ Step 2: initialize parameters	]=====
-	best_BIH = np.zeros ((3,3))
-	best_score = -1
+	BIH_score_list = []
 
 	#=====[ ITERATE THROUGH ALL SHIFTS	]=====
 	hi = deepcopy(horz_indices)
@@ -329,19 +332,14 @@ def find_BIH (horz_points_grid, horz_indices, vert_points_grid, vert_indices, co
 
 			#=====[ evaluate homography	]=====
 			BIH, score = evaluate_homography (hi, vi, horz_points_grid, vert_points_grid, corners)
+			BIH_score_list.append ((BIH, score))
 
-			#=====[ update best	]=====
-			if score > best_score:
-				best_score = score
-				best_BIH = BIH
-				print '				=====[ 	NEW BEST SCORE (# inliers) ]====='
-				print '				# inliers: ', best_score
-
-			#=====[ shift vi	]=====
+			#=====[ shift vi ]=====
 			vi += 1
 		hi += 1
 
-	return best_BIH
+	BIH_score_list.sort (key=lambda x: x[1], reverse=True)
+	return BIH_score_list
 
 
 
@@ -381,303 +379,8 @@ def get_chessboard_lines (corners, image):
 	vert_points_grid = snap_points_to_lines (vert_lines, corners)
 
 	#=====[ Step 4: find homography	]=====
-	BIH = find_BIH (horz_points_grid, horz_indices, vert_points_grid, vert_indices, corners)
-	return BIH
-
-
-
-
-def sort_point_grid (grid, sort_coord):
-	"""
-		Function: sort_point_grid
-		-------------------------
-		given a grid and a coordinate to sort by, this returns
-		a sorted version
-	"""
-	#=====[ Step 1: get mean sort coords	]=====
-	mean_sort_coords = []
-	for i in range(len(grid)):
-		mean_sort_coord = np.mean([x[sort_coord] for x in grid[i]])
-		mean_sort_coords.append (mean_sort_coord)
-	mean_sort_coords = np.array (mean_sort_coords)
-
-	#=====[ Step 2: make sort grid	]=====
-	sort_grid = [(g, m) for g, m in zip(grid, mean_sort_coords)]
-	sort_grid.sort (key=lambda x: x[1])
-	grid = [g for g, m in sort_grid]
-
-	return grid
-
-
-def get_line (point, grid):
-
-	for index, line in enumerate(grid):
-		if point in line:
-			return index
-
-	assert False
-
-
-def extract_point_correspondences (horz_grid, vert_grid, grid_points):
-	"""
-		Function: extract_point_correspondences
-		---------------------------------------
-		given a horizontal grid and a vertical grid, this returns a list 
-		of point correspondences
-	"""
-	image_points = []
-	board_points = []
-	for image_point in grid_points:
-		board_x = 2 + get_line (image_point, vert_grid)
-		board_y = get_line (image_point, horz_grid)
-
-		image_points.append (image_point)
-		board_points.append ((board_x, board_y))
-
-	return image_points, board_points
-
-
-
-
-
-####################################################################################################
-#################[ --- MESSY RANSAC --- ]###########################################################
-####################################################################################################
-
-quadrants_bp = {
-	
-	'tl': 	[	
-				(0, 2), (0, 3), (0, 4),
-				(1, 2), (1, 3), (1, 4),
-				(2, 2), (2, 3), (2, 4),
-				(3, 2), (3, 3), (3, 4),
-				(4, 2), (4, 3), (4, 4),
-			],
-
-	'bl':	[	
-				(5, 2), (5, 3), (5, 4),
-				(6, 2), (6, 3), (6, 4),
-				(7, 2), (7, 3), (7, 4),
-				(8, 2), (8, 3), (8, 4),
-			],
-
-	'tr': 	[
-				(0, 5), (0, 6),
-				(1, 5), (1, 6),
-				(2, 5), (2, 6),
-				(3, 5), (3, 6),
-				(4, 5), (4, 6),
-			],
-
-	'br': 	[
-				(5, 5), (5, 6),
-				(6, 5), (6, 6),
-				(7, 5), (7, 6),
-				(8, 5), (8, 6),
-			]
-
-}
-qbp= {
-	
-	'tl': 	[	
-				(0, 2), (0, 3), #(0, 4),
-				# (1, 2), (1, 3), #(1, 4),
-				# (2, 2), (2, 3), (2, 4),
-				# (3, 2), (3, 3), (3, 4),
-				# (4, 2), (4, 3), (4, 4),
-			],
-
-	'bl':	[	
-				# (5, 2), (5, 3), (5, 4),
-				# (6, 2), (6, 3), (6, 4),
-				# (7, 2), (7, 3), (7, 4),
-				(8, 2), (8, 3), #(8, 4),
-			],
-
-	'tr': 	[
-				# (0, 5), (0, 6),
-				(1, 5), (1, 6),
-				# (2, 5), (2, 6),
-				# (3, 5), (3, 6),
-				# (4, 5), (4, 6),
-			],
-
-	'br': 	[
-				# (5, 5), (5, 6),
-				# (6, 5), (6, 6),
-				# (7, 5), (7, 6),
-				(8, 5), (8, 6),
-			]
-}
-all_board_points = (quadrants_bp['tl'] + quadrants_bp['tr'] + quadrants_bp['bl'] + quadrants_bp['br'])
-
-
-def get_messy_point_grids (horz_lines, vert_lines, corners):
-	"""
-		Function: get_messy_point_grids
-		-------------------------------
-		given horizontal lines, vertical lines (in abc) and a set of corners,
-		this will return two 'messy grids' that organize points on horizontal 
-		lines and vertical lines.
-	"""
-	#=====[ Step 1: snap points to grid	]=====
-	horz_lines = [abc_to_rho_theta(l) for l in horz_lines]
-	vert_lines = [abc_to_rho_theta(l) for l in vert_lines]
-	horz_grid = snap_points_to_lines (horz_lines, corners)
-	vert_grid = snap_points_to_lines (vert_lines, corners)
-
-	#=====[ Step 2: get all points that are on each grid	]=====
-	all_horz_points = [p for h in horz_grid for p in h]
-	all_vert_points = [p for v in vert_grid for p in v]
-	grid_points = list(set(all_horz_points).intersection(set(all_vert_points)))
-
-	#=====[ Step 3: create and sort grids ]=====
-	messy_horz_grid = snap_points_to_lines (horz_lines, grid_points)
-	messy_vert_grid = snap_points_to_lines (vert_lines, grid_points)
-	messy_horz_grid = sort_point_grid (messy_horz_grid, 1)
-	messy_vert_grid = sort_point_grid (messy_vert_grid, 0)
-	#####[ DEBUG: print out grid lengths	]#####
-	print '=====[ horz_grid lengths	]====='
-	for g in horz_grid:
-		print len(g)
-	print '=====[ vert grid lengths]====='
-	for g in vert_grid:
-		print len(g)
-
-	return messy_horz_grid, messy_vert_grid
-
-
-def get_quadrants_ip (messy_horz_grid, messy_vert_grid):
-	"""
-		Function: get_quadrants_ip
-		--------------------------
-		returns quadrants_ip, which is a dict mapping quadrant 
-		name to a list of points that fall within it 
-	"""
-	#=====[ Step 1: get top_half, bottom_half	]=====
-	fourth 			= int(len(messy_horz_grid)/4)
-	three_fourth 	= int(3*len(messy_horz_grid)/4)
-	half 			= int(len(messy_horz_grid)/2)
-	top_half 		= set([p for l in messy_horz_grid[:half] for p in l])
-	bottom_half 	= set([p for l in messy_horz_grid[half:] for p in l])
-
-	top_fourth		= set([p for l in messy_horz_grid[:fourth] for p in l])
-	bottom_fourth	= set([p for l in messy_horz_grid[three_fourth:] for p in l])	
-
-	#=====[ Step 2: get left half, right_half	]=====
-	fourth 			= int(len(messy_vert_grid)/4)
-	three_fourth 	= int(3*len(messy_vert_grid)/4)
-
-	half = int(len(messy_vert_grid)/2)
-	left_half 		= set([p for l in messy_vert_grid[:half] for p in l])
-	right_half 		= set([p for l in messy_vert_grid[half:] for p in l])
-	left_fourth		= set([p for l in messy_vert_grid[:fourth] for p in l])
-	right_fourth 		= set([p for l in messy_vert_grid[three_fourth:] for p in l])
-
-	#=====[ Step 3: assemble quadrants	]=====
-	quadrants_ip = {
-
-		'tl':list(top_half.intersection(left_half)),
-		'bl':list(bottom_half.intersection(left_half)),
-		'tr':list(top_half.intersection(right_half)),
-		'br':list(bottom_half.intersection(right_half))
-
-	}
-	q_ip = {
-
-		'tl':list(top_fourth.intersection(left_fourth)),
-		'bl':list(bottom_fourth.intersection(left_fourth)),
-		'tr':list(top_fourth.intersection(right_fourth)),
-		'br':list(bottom_fourth.intersection(right_fourth))
-
-	}
-	corners = (quadrants_ip['tl'] + quadrants_ip['tr'] + quadrants_ip['bl'] + quadrants_ip['br'])
-	return corners, q_ip
-
-
-def sample_from_quadrants (quadrants):
-	"""
-		Function: sample_from_quadrants
-		-------------------------------
-		returns a randomly-chosen set of 4 points, one 
-		from each quadrant
-	"""
-	return 	[	
-				choice(quadrants['tl']), choice(quadrants['tr']), 
-				choice(quadrants['bl']), choice(quadrants['br'])
-			]
-
-def messy_grid_ransac (messy_horz_grid, messy_vert_grid, all_corners, image, num_iterations=10000):
-	"""
-		Function: messy_grid_ransac
-		---------------------------
-		given messy horizontal/vertical grids, this runs ransac in 
-		order to find a point correspondance that best matches 
-		the corners that we originally found 
-		all_corners = the set of all corners, not just those that snapped 
-		to lines
-	"""
-
-	#=====[ Step 1: divide image points into grids	]=====
-	corners, quadrants_ip = get_quadrants_ip (messy_horz_grid, messy_vert_grid)
-	#####[ DEBUG: draw the quadrants	]#####
-	cv2.namedWindow ('quadrants_ip')
-	image = draw_points_xy (image, quadrants_ip['tl'])
-	cv2.imshow ('quadrants_ip', image)
-	key = 0
-	while key != 27:
-		key = cv2.waitKey (30)
-	image = draw_points_xy (image, quadrants_ip['tr'])
-	cv2.imshow ('quadrants_ip', image)
-	key = 0
-	while key != 27:
-		key = cv2.waitKey (30)
-	image = draw_points_xy (image, quadrants_ip['br'])
-	cv2.imshow ('quadrants_ip', image)
-	key = 0
-	while key != 27:
-		key = cv2.waitKey (30)
-	image = draw_points_xy (image, quadrants_ip['bl'])
-	cv2.imshow ('quadrants_ip', image)
-	key = 0
-	while key != 27:
-		key = cv2.waitKey (30)
-
-	#==========[ RANSAC ITERATIONS	]==========
-	print '=====[ 	BEGIN ]====='
-	best_num_inliers = -1
-	best_BIH = np.zeros((3,3))
-	for i in range(num_iterations):
-		print i
-
-		#=====[ Step 1: sample 4 board points, one from each quadrant	]=====
-		board_points = sample_from_quadrants (qbp)
-
-		#=====[ Step 2: sample 4 image points, one from each quadrant	]=====
-		image_points = sample_from_quadrants (quadrants_ip)
-		#####[ DEBUG: draw image points	]#####
-		# cv2.namedWindow ('image_points')
-		# image = draw_points_xy (image, image_points)
-		# cv2.imshow ('image_points', image)
-		# key = 0
-		# while key != 27:
-		# 	key = cv2.waitKey (30)
-
-		#=====[ Step 3: compute BIH	]=====
-		# print '	', board_points
-		# print '	', image_points
-		BIH = point_correspondences_to_BIH (board_points, image_points)
-
-		#=====[ Step 4: compute number of inliers	]=====
-		num_inliers = compute_inliers (BIH, corners)
-		if num_inliers > best_num_inliers:
-			best_num_inliers = num_inliers
-			best_BIH = BIH
-
-		if best_num_inliers >= 20:
-			return BIH
-
-	print '=====[ END ]====='
+	BIH_score_list = find_BIH (horz_points_grid, horz_indices, vert_points_grid, vert_indices, corners)
+	return BIH_score_list
 
 
 def find_board_image_homography (image, corner_classifier):
@@ -702,9 +405,32 @@ def find_board_image_homography (image, corner_classifier):
 	# while key != 27:
 	# 	key = cv2.waitKey (30)
 
-
-	BIH = get_chessboard_lines (corners, image)
+	#=====[ Step 2: generate a list of BIH candidates	]=====
+	BIH_score_list = get_chessboard_lines (corners, image)
+	BIH = BIH_score_list[0][0]
 	return BIH
+
+
+	#=====[ Step 3: evaluate candidates until one is satisfactory	]=====
+	# all_board_points = []
+	# for i in range(9):
+		# for j in range(9):
+			# all_board_points.append ((i, j))
+
+	# for BIH, score in BIH_score_list:
+
+	# 	#=====[ Step 1: get image points	]=====
+	# 	all_BIH_ip = [board_to_image_coords (BIH, bp) for bp in all_board_points]
+	# 	all_BIH_kp = [cv2.KeyPoint(x=ip[0], y=ip[1], size=5) for ip in all_BIH_ip]
+
+	# 	#=====[ Step 2: get SIFT descriptors for each one	]=====
+	# 	sifd_desc = get_sift_descriptors(image, all_BIH_kp)
+
+	# 	#=====[ Step 3: get probabilities for each	]=====
+	# 	predictions = corner_classifier.predict_proba (sift_desc)
+	# 	print shape(predictions)
+
+
 
 
 

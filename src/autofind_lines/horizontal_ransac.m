@@ -9,16 +9,16 @@ function indexed_lines = horizontal_ransac (lines)
 
 	%=====[ Step 1: preprocess lines ]=====
 	sorted_lines = sort(lines, 2);
-	sorted_lines = sorted_lines (:, 1:4);
+	sorted_lines = sorted_lines (:, 1:5);
 	y = log(abs(sorted_lines(1, :)));
-	y = y(1:4);
+	y = y(1:5);
 
 	%=====[ Step 2: initialize parameters for RANSAC ]=====
-	indices = combnk(1:9, 4);
+	indices = combnk(1:9, 5);
 	num_iters = size(indices, 1);
 	best_Rsq = -1;
 	best_p = 0;
-	best_indices = [0, 0, 0, 0];
+	best_indices = [0, 0, 0, 0, 0];
 
 	%=====[ RANSAC ITERATIONS	]=====
 	for k = 1:num_iters

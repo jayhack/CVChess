@@ -6,7 +6,7 @@ function indexed_lines = get_horizontal_lines (corners_img)
 % the image
 
 	%=====[ Step 1: set parameters ]=====
-	num_peaks = 4;
+	num_peaks = 5;
 	theta_buckets_horz = [-90, -89];
 	rho_resolution_horz = 6;
 

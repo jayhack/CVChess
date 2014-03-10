@@ -6,7 +6,7 @@ function indexed_lines = get_vertical_lines (corners_img)
 % the image
 
 	%=====[ Step 1: set parameters ]=====
-	num_peaks = 4;
+	num_peaks = 5;
 	theta_buckets = -40:40;
 	rho_resolution = 6;
 
