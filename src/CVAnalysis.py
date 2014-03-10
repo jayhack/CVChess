@@ -336,7 +336,6 @@ def get_chessboard_lines (corners, image):
 	corners_img = np.zeros (image.shape[:2], dtype=np.uint8)
 	for corner in corners:
 		corners_img[int(corner[1])][int(corner[0])] = 255
-	cv2.imwrite ('corners_1.png', corners_img)
 	lines = cv2.HoughLines (corners_img, 3, np.pi/180, 4)[0]
 
 	#=====[ Step 2: get vertical lines	]=====
@@ -362,7 +361,9 @@ def get_chessboard_lines (corners, image):
 	# horz_lines_rt = lines
 
 
-	horz_lines = [rho_theta_to_abc(l) for l in horz_lines_rt]
+	print horz_lines_rt
+	print vert_lines_rt
+	horz_lines = [rho_theta_to_abc (l) for l in horz_lines_rt]
 	vert_lines = [rho_theta_to_abc (l) for l in vert_lines_rt]
 
 	return horz_lines, vert_lines
