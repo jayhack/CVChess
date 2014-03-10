@@ -333,6 +333,7 @@ def get_chessboard_lines (corners, image):
 		pairs 
 	"""
 	#=====[ Step 1: get lines via Hough transform on corners ]=====
+	cv2.imwrite ('raw_1.png', image);
 	corners_img = np.zeros (image.shape[:2], dtype=np.uint8)
 	for corner in corners:
 		corners_img[int(corner[1])][int(corner[0])] = 255
