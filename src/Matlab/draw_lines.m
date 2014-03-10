@@ -18,7 +18,7 @@ function draw_lines (image, lines)
 		x = 0:1080;
  		y = (rho - (x * cos(theta)) ) / sin(theta);
 
- 		plot(x, y, 'Color', 'green');
+ 		plot(x, y, 'Color', 'red', 'LineWidth', 5);
 
 	end
 

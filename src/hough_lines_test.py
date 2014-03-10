@@ -12,7 +12,8 @@ from Board import Board
 if __name__ == '__main__':
 
 	#=====[ Step 1: read in image, classifier ]=====
-	first_frame = cv2.imread ('../data/p1/0.jpg')
+	# first_frame = cv2.imread ('../data/p1/0.jpg')
+	first_frame = cv2.imread ('../data/empty1/4.jpg')
 	im_size = first_frame.shape[0]
 	first_frame = first_frame[int(im_size/2):, :]
 
