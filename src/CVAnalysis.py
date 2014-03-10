@@ -258,15 +258,17 @@ def get_chessboard_lines (corners, image):
 	os.chdir ('../')
 
 	#=====[ Step 4: get the lines back	]=====
-	horz_lines = np.genfromtxt ('./IPC/horizontal_lines.csv', delimiter=',')
-	vert_lines = np.genfromtxt ('./IPC/vertical_lines.csv', delimiter=',')
+	horz_lines_indexed = np.genfromtxt ('./IPC/horizontal_lines.csv', delimiter=',')
+	vert_lines_indexed = np.genfromtxt ('./IPC/vertical_lines.csv', delimiter=',')
+	horz_lines = zip(list(horz_lines_indexed[0, :]), list(horz_lines_indexed[1, :]))
+	vert_lines = zip(list(vert_lines_indexed[0, :]), list(vert_lines_indexed[1, :]))
+	horz_indices = horz_lines_indexed[2, :]
+	vert_indices = vert_lines_indexed[2, :]
 
-	print horz_lines
-	print vert_lines
+	#=====[ Step 3: snap points to grid ]===
+	horz_points_grid = snap_points_to_lines (horz_lines, corners)
+	vert_points_grid = snap_points_to_lines (vert_lines, corners)
 
-
-	# #=====[ Step 3: snap points to grid ]===
-	# points_grid = snap_points_to_lines (vert_lines_rt, corners)
 
 	# #=====[ Step 6: hough transform on points in grid to get horizontal lines	]=====
 	# all_points = [p for l in points_grid for p in l]
