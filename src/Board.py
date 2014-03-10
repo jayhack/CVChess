@@ -137,6 +137,8 @@ class Board:
 		self.BIH = CVAnalysis.find_board_image_homography (self.current_frame, self.corner_classifier)
 
 
+
+
 	def construct_squares (self):
 		"""
 			PRIVATE: construct_squares

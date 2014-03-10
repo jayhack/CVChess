@@ -99,7 +99,7 @@ if __name__ == "__main__":
 	
 	#==========[ Step 5: get descriptors for each corner point	]==========
 	print_status ('MarkImage', 'getting SIFT descriptors for clicked corners')
-	kpts, desc = CVAnalysis.get_sift_descriptors (image, corner_keypoints)
+	desc = CVAnalysis.get_sift_descriptors (image, corner_keypoints)
 	corner_sift_desc = desc
 
 

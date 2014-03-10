@@ -12,8 +12,12 @@ from Board import Board
 if __name__ == '__main__':
 
 	#=====[ Step 1: read in image, classifier ]=====
-	first_frame = cv2.imread ('../data/p2/2.jpg')
-	corner_classifier = pickle.load (open('../data/classifiers/corner_classifier.clf', 'r'))
+	first_frame = cv2.imread ('../data/p1/0.jpg')
+	im_size = first_frame.shape[0]
+	first_frame = first_frame[int(im_size/2):, :]
+
+	# corner_classifier = pickle.load (open('../data/classifiers/corner_classifier.clf', 'r'))
+	corner_classifier = pickle.load (open('./corner_data/corner_classifier.obj', 'r'))	#more data
 	board = Board(corner_classifier=corner_classifier)
 	board.add_frame (first_frame)
 

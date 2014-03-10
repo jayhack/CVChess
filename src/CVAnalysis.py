@@ -1,3 +1,5 @@
+from copy import deepcopy
+from random import choice
 import cv2
 import numpy as np
 from numpy import matrix, concatenate
@@ -39,6 +41,8 @@ def get_image_diff (img1, img2):
 
 
 
+
+
 ####################################################################################################
 ##############################[ --- CORNER DETECTION/DESCRIPTION--- ]###############################
 ####################################################################################################
@@ -68,8 +72,88 @@ def get_sift_descriptors (image, kpts):
 
 
 
+
+
 ####################################################################################################
-#################[ --- FINDING POINT CORRESPONDENCES FROM IMAGE --- ]###############################
+#################[ --- FINDING BOARD_IMAGE HOMOGRAPHY FROM POINTS CORRESPONDENCES --- ]#############
+####################################################################################################	
+
+def get_P_rows (bp, ip):
+		"""
+		Function: get_P_rows
+		--------------------
+		bp: point in board coordinates
+		ip: corresponding point in image coordinates
+		returns: matrix P_j
+			P_j = 	[x y z 0 0 0 0 0 0]
+					[0 0 0 x y z 0 0 0]
+		"""
+		u, v = ip[0], ip[1]
+		x, y, z = bp[0], bp[1], 1
+		return matrix 	([
+							[x, y, z, 0, 0, 0, -u*x, -u*y, -u],
+							[0, 0, 0, x, y, z, -v*x, -v*y, -v],								
+
+						])
+
+
+def get_P (board_points, image_points):
+	"""
+		Function: get_P
+		---------------
+		board_points: list of points from board 
+		image_points: list of points from image
+		returns: matrix P such that 
+			P * M = 0
+			M = columnized version of BIH
+
+		P is 2n * 9, where n = number of correspondences
+	"""
+	return concatenate ([get_P_rows (bp, ip) for bp, ip in zip(board_points, image_points)], 0)
+
+
+def assemble_BIH (V):
+	"""
+		Function: assemble_BIH
+		----------------------
+		given V, assembles a matrix from it 
+	"""
+	vt = V.T[:, -1]
+	return concatenate ([vt[0:3].T, vt[3:6].T, vt[6:9].T], 0);
+
+
+def point_correspondences_to_BIH (board_points, image_points):
+	"""
+		Function: point_correspondences_to_BIH
+		--------------------------------------
+		board_image: a BoardImage object *containing point correspondences*
+		returns: matrix BIH such that
+			BIH * pb = pi
+			pb = point in (homogenized) board coordinates 
+			pw = point in (homogenized) image coordinates
+	"""
+	#=====[ Step 1: ensure correct number of correspondances ]=====
+	assert (len (board_points) == len (image_points)) and (len(board_points) >= 4)
+
+	#=====[ Step 2: get P	]=====
+	P = get_P (board_points, image_points)
+
+	#=====[ Step 3: SVD on P ]=====
+	U, S, V = svd (P)
+
+	#=====[ Step 4: assemble BIH from V	]=====
+	BIH = assemble_BIH (V)
+	return BIH
+
+
+
+
+
+
+
+
+####################################################################################################
+#################[ --- FINDING BIH FROM IMAGE --- ]#################################################
 ####################################################################################################
 
 def cluster_points (points, cluster_dist=7):
@@ -106,8 +190,6 @@ def cluster_lines (lines, num_clusters):
 		to their centroid 
 		comparison_function: returns true if two lines are in a cluster
 	"""
-
-
 	#=====[ Step 1: init old_lines, new_lines	]=====
 	old_lines = np.array (lines)
 	new_lines = []
@@ -130,7 +212,9 @@ def get_chessboard_corner_candidates (image, corner_classifier):
 		Function: get_chessboard_corner_candidates
 		------------------------------------------
 		given an image, returns a list of points (represented as tuples)
-		that correspond to possible chessboard corners 
+		that correspond to possible chessboard corners. Note: they have 
+		been clustered on output to account for harris corners surrounding 
+		actual chessboard corners
 	"""
 	#=====[ Step 1: get corners/sift descriptors	]=====
 	hc = get_harris_corners(image)
@@ -140,6 +224,7 @@ def get_chessboard_corner_candidates (image, corner_classifier):
 	predictions = corner_classifier.predict (sd)
 	idx = (predictions == 1)
 	chessboard_corners = [c.pt for c, i in zip(hc, idx) if i]
+	# chessboard_corners = [c.pt for c in hc] #no classifier - for demos
 
 	#=====[ Step 3: cluster corners	]=====
 	chessboard_corners = cluster_points (chessboard_corners)
@@ -160,7 +245,7 @@ def filter_by_slope (lines, slope_predicate):
 	return [l for l, i in zip(lines, idx) if i]
 
 
-def avg_close_lines (lines_list):
+def avg_close_lines_vert (lines_list):
 	"""
 		Function: avg_close_points 
 		--------------------------
@@ -251,19 +336,17 @@ def get_chessboard_lines (corners, image):
 	corners_img = np.zeros (image.shape[:2], dtype=np.uint8)
 	for corner in corners:
 		corners_img[int(corner[1])][int(corner[0])] = 255
-	lines = cv2.HoughLines (corners_img, 3, np.pi/180, 6)[0]
-	lines = [rho_theta_to_abc (l) for l in lines]
+	cv2.imwrite ('corners_1.png', corners_img)
+	lines = cv2.HoughLines (corners_img, 3, np.pi/180, 4)[0]
 
 	#=====[ Step 2: get vertical lines	]=====
-	v_rh = [abc_to_rho_theta (l) for l in lines]
-	v_rh = avg_close_lines (v_rh)
-	vert_lines = [rho_theta_to_abc(v) for v in v_rh]
-	vert_lines = filter_by_slope (vert_lines, lambda slope: (slope > 1.7))
-	v_rh = [abc_to_rho_theta (l) for l in vert_lines]
-
+	# lines = avg_close_lines_vert (lines)
+	lines = [rho_theta_to_abc(l) for l in lines]
+	vert_lines = filter_by_slope (lines, lambda slope: (slope > 1) or (slope < -1))
+	vert_lines_rt = [abc_to_rho_theta (l) for l in vert_lines]
 
 	#=====[ Step 3: snap points to grid ]===
-	points_grid = snap_points_to_lines (v_rh, corners)
+	points_grid = snap_points_to_lines (vert_lines_rt, corners)
 
 	#=====[ Step 6: hough transform on points in grid to get horizontal lines	]=====
 	all_points = [p for l in points_grid for p in l]
@@ -272,46 +355,17 @@ def get_chessboard_lines (corners, image):
 		corners_img[int(p[1])][int(p[0])] = 255
 	lines = cv2.HoughLines (corners_img, 3, np.pi/180, 2)[0]
 	lines = [rho_theta_to_abc (l) for l in lines]
-	horz_lines = filter_by_slope (lines, lambda slope: (slope < 0.1))
+	horz_lines = filter_by_slope (lines, lambda slope: (slope < 0.1) and (slope > -0.1))
 	lines = [abc_to_rho_theta(l) for l in horz_lines]
-	horz_lines = avg_close_lines_2 (lines)
-	horz_lines = [rho_theta_to_abc(l) for l in horz_lines]
 
-	# print '=====[ 	X intercepts]====='
-	# x_intercepts = [[get_screen_bottom_intercept (l, image.shape[0])] for l in vert_lines]
+	horz_lines_rt = avg_close_lines_2 (lines)
+	# horz_lines_rt = lines
 
-	# print x_intercepts
 
-	# km_h = KMeans(n_clusters=9)
-	# km_v = KMeans(n_clusters=5)
-
-	# h_idx = km_h.fit_predict (h_rhos)
-	# v_idx = km_v.fit_predict (x_intercepts)
-
-	# h_centroids = []
-	# for i in range(9):
-	# 	print "===[ cluster ", i, " ]==="
-	# 	points = np.array([h for h, j in zip(h_rh, h_idx) if (j == i)])
-	# 	print points
-	# 	print np.mean (points, axis=0)
-	# 	h_centroids.append (np.mean (points, axis=0))
-
-	# v_centroids = []
-	# for i in range(5):
-		# print "===[ cluster ", i, " ]==="
-		# points = np.array([h for h, j in zip(vert_lines, v_idx) if (j == i)])
-		# ba_ratio = np.divide(points[:, 1], points[:, 0])
-		# ca_ratio = np.divide(points[:, 2], points[:, 0])
-		# v_centroids.append ((np.mean(ba_ratio), np.mean(ca_ratio)))
-
-	# v_centroids = [(1, v[0],  v[1]) for v in v_centroids]
-	# print v_centroids
-
-	# horz_lines = [rho_theta_to_abc (l) for l in h_rh]
-	vert_lines = [rho_theta_to_abc (l) for l in v_rh]
+	horz_lines = [rho_theta_to_abc(l) for l in horz_lines_rt]
+	vert_lines = [rho_theta_to_abc (l) for l in vert_lines_rt]
 
 	return horz_lines, vert_lines
-
 
 
 def sort_point_grid (grid, sort_coord):
@@ -335,6 +389,7 @@ def sort_point_grid (grid, sort_coord):
 
 	return grid
 
+
 def get_line (point, grid):
 
 	for index, line in enumerate(grid):
@@ -342,8 +397,6 @@ def get_line (point, grid):
 			return index
 
 	assert False
-
-
 
 
 def extract_point_correspondences (horz_grid, vert_grid, grid_points):
@@ -365,13 +418,88 @@ def extract_point_correspondences (horz_grid, vert_grid, grid_points):
 	return image_points, board_points
 
 
-def find_point_correspondences (horz_lines, vert_lines, corners):
+
+
+
+####################################################################################################
+#################[ --- MESSY RANSAC --- ]###########################################################
+####################################################################################################
+
+quadrants_bp = {
+	
+	'tl': 	[	
+				(0, 2), (0, 3), (0, 4),
+				(1, 2), (1, 3), (1, 4),
+				(2, 2), (2, 3), (2, 4),
+				(3, 2), (3, 3), (3, 4),
+				(4, 2), (4, 3), (4, 4),
+			],
+
+	'bl':	[	
+				(5, 2), (5, 3), (5, 4),
+				(6, 2), (6, 3), (6, 4),
+				(7, 2), (7, 3), (7, 4),
+				(8, 2), (8, 3), (8, 4),
+			],
+
+	'tr': 	[
+				(0, 5), (0, 6),
+				(1, 5), (1, 6),
+				(2, 5), (2, 6),
+				(3, 5), (3, 6),
+				(4, 5), (4, 6),
+			],
+
+	'br': 	[
+				(5, 5), (5, 6),
+				(6, 5), (6, 6),
+				(7, 5), (7, 6),
+				(8, 5), (8, 6),
+			]
+
+}
+qbp= {
+	
+	'tl': 	[	
+				(0, 2), (0, 3), #(0, 4),
+				# (1, 2), (1, 3), #(1, 4),
+				# (2, 2), (2, 3), (2, 4),
+				# (3, 2), (3, 3), (3, 4),
+				# (4, 2), (4, 3), (4, 4),
+			],
+
+	'bl':	[	
+				# (5, 2), (5, 3), (5, 4),
+				# (6, 2), (6, 3), (6, 4),
+				# (7, 2), (7, 3), (7, 4),
+				(8, 2), (8, 3), #(8, 4),
+			],
+
+	'tr': 	[
+				# (0, 5), (0, 6),
+				(1, 5), (1, 6),
+				# (2, 5), (2, 6),
+				# (3, 5), (3, 6),
+				# (4, 5), (4, 6),
+			],
+
+	'br': 	[
+				# (5, 5), (5, 6),
+				# (6, 5), (6, 6),
+				# (7, 5), (7, 6),
+				(8, 5), (8, 6),
+			]
+}
+all_board_points = (quadrants_bp['tl'] + quadrants_bp['tr'] + quadrants_bp['bl'] + quadrants_bp['br'])
+
+
+def get_messy_point_grids (horz_lines, vert_lines, corners):
 	"""
-		Function: find_point_correspondences
-		------------------------------------
+		Function: get_messy_point_grids
+		-------------------------------
 		given horizontal lines, vertical lines (in abc) and a set of corners,
-		this will return image_points, board_points, where the 
-		two correspond
+		this will return two 'messy grids' that organize points on horizontal 
+		lines and vertical lines.
 	"""
 	#=====[ Step 1: snap points to grid	]=====
 	horz_lines = [abc_to_rho_theta(l) for l in horz_lines]
@@ -385,14 +513,178 @@ def find_point_correspondences (horz_lines, vert_lines, corners):
 	grid_points = list(set(all_horz_points).intersection(set(all_vert_points)))
 
 	#=====[ Step 3: create and sort grids ]=====
-	horz_grid = snap_points_to_lines (horz_lines, grid_points)
-	vert_grid = snap_points_to_lines (vert_lines, grid_points)
-	horz_grid = sort_point_grid (horz_grid, 1)
-	vert_grid = sort_point_grid (vert_grid, 0)
+	messy_horz_grid = snap_points_to_lines (horz_lines, grid_points)
+	messy_vert_grid = snap_points_to_lines (vert_lines, grid_points)
+	messy_horz_grid = sort_point_grid (messy_horz_grid, 1)
+	messy_vert_grid = sort_point_grid (messy_vert_grid, 0)
+	#####[ DEBUG: print out grid lengths	]#####
+	print '=====[ horz_grid lengths	]====='
+	for g in horz_grid:
+		print len(g)
+	print '=====[ vert grid lengths]====='
+	for g in vert_grid:
+		print len(g)
 
-	#=====[ Step 4: extract point correspondences	]=====
-	return extract_point_correspondences (horz_grid, vert_grid, grid_points)
+	return messy_horz_grid, messy_vert_grid
 
+
+def get_quadrants_ip (messy_horz_grid, messy_vert_grid):
+	"""
+		Function: get_quadrants_ip
+		--------------------------
+		returns quadrants_ip, which is a dict mapping quadrant 
+		name to a list of points that fall within it 
+	"""
+	#=====[ Step 1: get top_half, bottom_half	]=====
+	fourth 			= int(len(messy_horz_grid)/4)
+	three_fourth 	= int(3*len(messy_horz_grid)/4)
+	half 			= int(len(messy_horz_grid)/2)
+	top_half 		= set([p for l in messy_horz_grid[:half] for p in l])
+	bottom_half 	= set([p for l in messy_horz_grid[half:] for p in l])
+
+	top_fourth		= set([p for l in messy_horz_grid[:fourth] for p in l])
+	bottom_fourth	= set([p for l in messy_horz_grid[three_fourth:] for p in l])	
+
+	#=====[ Step 2: get left half, right_half	]=====
+	fourth 			= int(len(messy_vert_grid)/4)
+	three_fourth 	= int(3*len(messy_vert_grid)/4)
+
+	half = int(len(messy_vert_grid)/2)
+	left_half 		= set([p for l in messy_vert_grid[:half] for p in l])
+	right_half 		= set([p for l in messy_vert_grid[half:] for p in l])
+	left_fourth		= set([p for l in messy_vert_grid[:fourth] for p in l])
+	right_fourth 		= set([p for l in messy_vert_grid[three_fourth:] for p in l])
+
+	#=====[ Step 3: assemble quadrants	]=====
+	quadrants_ip = {
+
+		'tl':list(top_half.intersection(left_half)),
+		'bl':list(bottom_half.intersection(left_half)),
+		'tr':list(top_half.intersection(right_half)),
+		'br':list(bottom_half.intersection(right_half))
+
+	}
+	q_ip = {
+
+		'tl':list(top_fourth.intersection(left_fourth)),
+		'bl':list(bottom_fourth.intersection(left_fourth)),
+		'tr':list(top_fourth.intersection(right_fourth)),
+		'br':list(bottom_fourth.intersection(right_fourth))
+
+	}
+	corners = (quadrants_ip['tl'] + quadrants_ip['tr'] + quadrants_ip['bl'] + quadrants_ip['br'])
+	return corners, q_ip
+
+
+def sample_from_quadrants (quadrants):
+	"""
+		Function: sample_from_quadrants
+		-------------------------------
+		returns a randomly-chosen set of 4 points, one 
+		from each quadrant
+	"""
+	return 	[	
+				choice(quadrants['tl']), choice(quadrants['tr']), 
+				choice(quadrants['bl']), choice(quadrants['br'])
+			]
+
+def is_BIH_inlier (all_BIH_ip, corner, pix_dist=6):
+	"""
+		Function: is_BIH_inlier
+		-----------------------
+		given the set of BIH image points and a corner,
+		returns true if the corner is within pix_dist
+		of any BIH ip
+	"""
+	return any([(euclidean_distance(ip, corner) <= pix_dist) for ip in all_BIH_ip])
+
+
+def compute_inliers (BIH, corners):
+	"""
+		Function: compute_inliers
+		-------------------------
+		given a board-image homography and a set of all corners,
+		this will return the number that are inliers 
+	"""
+	#=====[ Step 1: get a set of all image points for vertices of board coords	]=====
+	all_BIH_ip = [board_to_image_coords (BIH, bp) for bp in all_board_points]
+
+	#=====[ Step 2: get booleans for each corner being an inlier	]=====
+	num_inliers = sum ([is_BIH_inlier (all_BIH_ip, corner) for corner in corners])
+	return num_inliers
+
+
+def messy_grid_ransac (messy_horz_grid, messy_vert_grid, all_corners, image, num_iterations=10000):
+	"""
+		Function: messy_grid_ransac
+		---------------------------
+		given messy horizontal/vertical grids, this runs ransac in 
+		order to find a point correspondance that best matches 
+		the corners that we originally found 
+		all_corners = the set of all corners, not just those that snapped 
+		to lines
+	"""
+
+	#=====[ Step 1: divide image points into grids	]=====
+	corners, quadrants_ip = get_quadrants_ip (messy_horz_grid, messy_vert_grid)
+	#####[ DEBUG: draw the quadrants	]#####
+	cv2.namedWindow ('quadrants_ip')
+	image = draw_points_xy (image, quadrants_ip['tl'])
+	cv2.imshow ('quadrants_ip', image)
+	key = 0
+	while key != 27:
+		key = cv2.waitKey (30)
+	image = draw_points_xy (image, quadrants_ip['tr'])
+	cv2.imshow ('quadrants_ip', image)
+	key = 0
+	while key != 27:
+		key = cv2.waitKey (30)
+	image = draw_points_xy (image, quadrants_ip['br'])
+	cv2.imshow ('quadrants_ip', image)
+	key = 0
+	while key != 27:
+		key = cv2.waitKey (30)
+	image = draw_points_xy (image, quadrants_ip['bl'])
+	cv2.imshow ('quadrants_ip', image)
+	key = 0
+	while key != 27:
+		key = cv2.waitKey (30)
+
+	#==========[ RANSAC ITERATIONS	]==========
+	print '=====[ 	BEGIN ]====='
+	best_num_inliers = -1
+	best_BIH = np.zeros((3,3))
+	for i in range(num_iterations):
+		print i
+
+		#=====[ Step 1: sample 4 board points, one from each quadrant	]=====
+		board_points = sample_from_quadrants (qbp)
+
+		#=====[ Step 2: sample 4 image points, one from each quadrant	]=====
+		image_points = sample_from_quadrants (quadrants_ip)
+		#####[ DEBUG: draw image points	]#####
+		# cv2.namedWindow ('image_points')
+		# image = draw_points_xy (image, image_points)
+		# cv2.imshow ('image_points', image)
+		# key = 0
+		# while key != 27:
+		# 	key = cv2.waitKey (30)
+
+		#=====[ Step 3: compute BIH	]=====
+		# print '	', board_points
+		# print '	', image_points
+		BIH = point_correspondences_to_BIH (board_points, image_points)
+
+		#=====[ Step 4: compute number of inliers	]=====
+		num_inliers = compute_inliers (BIH, corners)
+		if num_inliers > best_num_inliers:
+			best_num_inliers = num_inliers
+			best_BIH = BIH
+
+		if best_num_inliers >= 20:
+			return BIH
+
+	print '=====[ END ]====='
 
 
 def find_board_image_homography (image, corner_classifier):
@@ -405,125 +697,41 @@ def find_board_image_homography (image, corner_classifier):
 		corner_classifier is an sklearn classifier that maps points 
 		to {0,1}, where 1 means it is a chessboard corner
 	"""
+	img_copy = deepcopy(image)
+
 	#=====[ Step 1: get chessboard corners	]=====
 	corners = get_chessboard_corner_candidates (image, corner_classifier)
+	#####[ DEBUG: DRAW CORNERS	]#####
+	# img_copy = draw_points_xy (img_copy, corners)
+	# cv2.namedWindow ('corners')
+	# cv2.imshow ('corners', img_copy)
+	# key = 0
+	# while key != 27:
+	# 	key = cv2.waitKey (30)
+
+
 
 	#=====[ Step 2: get horizontal, vertical lines (as abc)	]=====
 	horz_lines, vert_lines = get_chessboard_lines (corners, image)
-
-	#=====[ Step 4: find point correspondences	]=====
-	image_points, board_points = find_point_correspondences (horz_lines, vert_lines, corners)
-
-	#=====[ Step 5: convert to BIH	]=====
-	return point_correspondences_to_BIH (board_points, image_points)
-
-
-
-####################################################################################################
-#################[ --- FINDING BOARD_IMAGE HOMOGRAPHY FROM POINTS CORRESPONDENCES --- ]#############
-####################################################################################################	
-
-def get_P_rows (bp, ip):
-		"""
-		Function: get_P_rows
-		--------------------
-		bp: point in board coordinates
-		ip: corresponding point in image coordinates
-		returns: matrix P_j
-			P_j = 	[x y z 0 0 0 0 0 0]
-					[0 0 0 x y z 0 0 0]
-		"""
-		u, v = ip[0], ip[1]
-		x, y, z = bp[0], bp[1], 1
-		return matrix 	([
-							[x, y, z, 0, 0, 0, -u*x, -u*y, -u],
-							[0, 0, 0, x, y, z, -v*x, -v*y, -v],								
-
-						])
+	#####[ DEBUG: DRAW HORIZONTAL, VERTICAL LINES	]#####
+	img_copy = draw_lines_abc (img_copy, horz_lines, color=(0, 0, 255))
+	img_copy = draw_lines_abc (img_copy, vert_lines, color=(0, 255, 0))
+	cv2.namedWindow ('lines')
+	cv2.imshow ('lines', img_copy)
+	key = 0
+	while key != 27:
+		key = cv2.waitKey (30)
 
 
-def get_P (board_points, image_points):
-	"""
-		Function: get_P
-		---------------
-		board_points: list of points from board 
-		image_points: list of points from image
-		returns: matrix P such that 
-			P * M = 0
-			M = columnized version of BIH
-
-		P is 2n * 9, where n = number of correspondences
-	"""
-	return concatenate ([get_P_rows (bp, ip) for bp, ip in zip(board_points, image_points)], 0)
+	#=====[ Step 4: find messy point grids	]=====
+	messy_horz_grid, messy_vert_grid = get_messy_point_grids (horz_lines, vert_lines, corners)
 
 
-def assemble_BIH (V):
-	"""
-		Function: assemble_BIH
-		----------------------
-		given V, assembles a matrix from it 
-	"""
-	vt = V.T[:, -1]
-	return concatenate ([vt[0:3].T, vt[3:6].T, vt[6:9].T], 0);
+	#=====[ Step 5: find best homography via messy_grid_ransac	]=====
+	BIH = messy_grid_ransac (messy_horz_grid, messy_vert_grid, corners, image)
 
-
-def point_correspondences_to_BIH (board_points, image_points):
-	"""
-		Function: point_correspondences_to_BIH
-		--------------------------------------
-		board_image: a BoardImage object *containing point correspondences*
-		returns: matrix BIH such that
-			BIH * pb = pi
-			pb = point in (homogenized) board coordinates 
-			pw = point in (homogenized) image coordinates
-	"""
-	#=====[ Step 1: ensure correct number of correspondances ]=====
-	assert (len (board_points) == len (image_points)) and (len(board_points) >= 4)
-
-	#=====[ Step 2: get P	]=====
-	P = get_P (board_points, image_points)
-
-	#=====[ Step 3: SVD on P ]=====
-	U, S, V = svd (P)
-
-	#=====[ Step 4: assemble BIH from V	]=====
-	BIH = assemble_BIH (V)
 	return BIH
-	
 
-
-
-####################################################################################################
-##############################[ --- AUTOMATICALLY FINDING BOARD FROM IMAGE --- ]####################
-####################################################################################################
-
-def get_corner_features (harris_corner, sift_descriptor):
-	"""
-		Function: get_corner_features
-		-----------------------------
-		given a keypoint representing a harris corner and a sift 
-		descriptor that describes it, this returns a feature 
-		vector for it 
-	"""
-	return concatenate ([[harris_corner.pt[0]], [harris_corner.pt[1]], sift_descriptor])
-
-
-def get_BIH_from_image (image, corner_classifier):
-	"""
-		Function: get_BIH_from_image
-		----------------------------
-		given an image, this will return the most likely BIH from it 
-		Note: assumes image is in its final format
-	"""
-	#=====[ Step 1: get all harris corners, sift descriptors	]=====
-	harris_corners = get_harris_corners (image)
-	sift_descriptors = get_sift_descriptors (image, harris_corners)
-
-	#=====[ Step 2: get feature representations for each hc	]====
-	features = [get_corner_features (c, d) for c, d in zip(harris_corners, sift_descriptors)]
-
-	#=====[ Step 3: get p(corner|features) for each one ]=====
-	corner_probs = corner_classifier.predict_proba (features)
 
 
 

@@ -1,119 +1,8 @@
+from itertools import tee, izip
+import cv2
 import numpy as np
 from numpy import matrix, array, dot, transpose
 from numpy.linalg import inv
-
-####################################################################################################
-##############################[ --- LINEAR ALGEBRA --- ]############################################
-####################################################################################################
-
-def homogenize (x):
-	"""
-		Function: homogenize
-		--------------------
-		given a tuple, this will return a numpy array representing it in
-		homogenous coordinates
-	"""
-	return transpose(matrix ((x[0], x[1], 1)))
-
-def dehomogenize (x):
-	"""
-		Function: dehomogenize
-		----------------------
-		given a homogenous vector, this returns a tuple
-	"""
-	x = list(array(x).reshape(-1,))
-	return (x[0]/x[2], x[1]/x[2])
-
-def extract_row (mat, row):
-	""" 
-		Function: extract_row
-		---------------------
-		given a matrix and a row, returns the row as a numpy array 
-	"""
-	return np.asarray (mat[row, :])[0]
-
-
-def extract_col (mat, col):
-	""" 
-		Function: extract_col
-		---------------------
-		given a matrix and a col, returns the row as a numpy array 
-	"""
-	return np.asarray (mat[:, col])
-
-
-def euclidean_distance (p1, p2):
-	"""
-		Function: euclidean_distance 
-		----------------------------
-		given two points as 2-tuples, returns euclidean distance 
-		between them
-	"""
-	assert ((len(p1) == len(p2)) and (len(p1) == 2))
-	return np.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
-
-
-def get_centroid (points):
-	"""
-		Function: get_centroid 
-		----------------------
-		given a list of points represented 
-		as 2-tuples, returns their centroid 
-	"""
-	return (np.mean([p[0] for p in points]), np.mean([p[1] for p in points]))
-
-
-def rho_theta_to_abc (line):
-	"""
-		Function: rho_theta_to_abc
-		--------------------------
-		given a line represented as (rho, theta),
-		this returns the triplet (a, b, c) such that 
-		ax + by + c = 0 for all points (x, y) on the 
-		line
-	"""
-	rho, theta = line[0], line[1]
-	return (np.cos(theta), np.sin(theta), -rho)
-
-
-def abc_to_rho_theta (line):
-	"""
-		Function: abc_to_rho_theta
-		--------------------------
-		inverse of rho_theta_to_abc
-	"""
-	a, b, c = line[0], line[1], line[2]
-	rho, theta = -c, np.arccos(a)
-	return rho, theta
-
-
-def get_screen_bottom_intercept (l, y_screen_bottom):
-	"""
-		Function: get_screen_bottom_intercept
-		-------------------------------------
-		given lines in (a, b, c), this returns their intercept 
-		coordinates on the bottom of the screen 
-	"""
-	return (-l[1]/l[0])*y_screen_bottom - (l[2]/l[0])
-
-
-
-def get_line_point_distance (line, point):
-	"""
-		Function: get_line_point_distance 
-		---------------------------------
-		returns the distance from the point to the line 
-		assumes line is represented as (rho,theta), point 
-		is (x, y)
-	"""
-	assert len(line) == 2
-	assert len(point) == 2
-	a, b, c = rho_theta_to_abc (line)
-	x, y = point[0], point[1]
-	return np.abs(a*x + b*y + c)/np.sqrt(a**2 + b**2)
-
-
-
 
 ####################################################################################################
 ##############################[ --- COORDINATE CONVERSIONS --- ]####################################
@@ -158,6 +47,198 @@ def algebraic_notation_to_board_coords (an):
 
 
 ####################################################################################################
+##############################[ --- POINTS --- ]####################################################
+####################################################################################################
+
+def homogenize (x):
+	"""
+		Function: homogenize
+		--------------------
+		given a tuple, this will return a numpy array representing it in
+		homogenous coordinates
+	"""
+	return transpose(matrix ((x[0], x[1], 1)))
+
+
+def dehomogenize (x):
+	"""
+		Function: dehomogenize
+		----------------------
+		given a homogenous vector, this returns a tuple
+	"""
+	x = list(array(x).reshape(-1,))
+	return (x[0]/x[2], x[1]/x[2])
+
+
+def euclidean_distance (p1, p2):
+	"""
+		Function: euclidean_distance 
+		----------------------------
+		given two points as 2-tuples, returns euclidean distance 
+		between them
+	"""
+	assert ((len(p1) == len(p2)) and (len(p1) == 2))
+	return np.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
+
+
+def get_centroid (points):
+	"""
+		Function: get_centroid 
+		----------------------
+		given a list of points represented 
+		as 2-tuples, returns their centroid 
+	"""
+	return (np.mean([p[0] for p in points]), np.mean([p[1] for p in points]))
+
+
+
+####################################################################################################
+##############################[ --- LINES --- ]#####################################################
+####################################################################################################
+
+
+def rho_theta_to_abc (line):
+	"""
+		Function: rho_theta_to_abc
+		--------------------------
+		given a line represented as (rho, theta),
+		this returns the triplet (a, b, c) such that 
+		ax + by + c = 0 for all points (x, y) on the 
+		line
+	"""
+	rho, theta = line[0], line[1]
+	return (np.cos(theta), np.sin(theta), -rho)
+
+
+def abc_to_rho_theta (line):
+	"""
+		Function: abc_to_rho_theta
+		--------------------------
+		inverse of rho_theta_to_abc
+	"""
+	a, b, c = line[0], line[1], line[2]
+	rho, theta = -c, np.arccos(a)
+	return rho, theta
+
+
+def get_screen_bottom_intercept (l, y_screen_bottom):
+	"""
+		Function: get_screen_bottom_intercept
+		-------------------------------------
+		given lines in (a, b, c), this returns their intercept 
+		coordinates on the bottom of the screen 
+	"""
+	return (-l[1]/l[0])*y_screen_bottom - (l[2]/l[0])
+
+
+def get_line_point_distance (line, point):
+	"""
+		Function: get_line_point_distance 
+		---------------------------------
+		returns the distance from the point to the line 
+		assumes line is represented as (rho,theta), point 
+		is (x, y)
+	"""
+	assert len(line) == 2
+	assert len(point) == 2
+	a, b, c = rho_theta_to_abc (line)
+	x, y = point[0], point[1]
+	return np.abs(a*x + b*y + c)/np.sqrt(a**2 + b**2)
+
+
+def get_line_intersection (l1, l2):
+	"""
+		Function: get_line_intersection
+		-------------------------------
+		given two lines represented as (a,b,c), this will
+		return their intersection
+	"""
+	return np.cross (l1, l2)
+
+def get_parallel_lines (lines):
+	"""
+		Function: get_parallel_lines
+		----------------------------
+		given a set of lines in (a,b,c) format, this will
+		return the largest set of them that are parallel in 
+		3-space. (this means they intersect at the same point)
+	"""
+	def pairwise(iterable):
+		a, b = tee(iterable)
+		next(b, None)
+		return izip(a, b)
+
+
+	#=====[ Step 1: get all pairs of line intersections	]=====
+	for l1, l2 in pairwize(lines):
+		pass
+
+
+
+
+
+
+
+
+
+####################################################################################################
+##############################[ --- DRAWING UTILITIES --- ]#########################################
+####################################################################################################
+
+def draw_points_xy (image, points, color=(0, 0, 255), radius=5):
+	"""
+		Function: draw_points
+		---------------------
+		given a list of points represented as (x, y), this draws circles
+		around them on the provided image in the provided color
+	"""
+	for p in points:
+		cv2.circle (image, (int(p[0]), int(p[1])), radius, color)
+	return image
+
+
+def draw_lines_rho_theta (image, lines, color=(0, 0, 255)):
+	"""
+		Function: draw_lines_rho_theta
+		------------------------------
+		draws the provided lines, represented as (rho, theta),
+		on the provided image according to the color.
+		returns the modified image.
+	"""
+	for rho, theta in lines:
+		a = np.cos(theta)
+		b = np.sin(theta)
+		x0 = a*rho
+		y0 = b*rho
+		x1 = int(x0 + 1000*(-b))   # Here i have used int() instead of rounding the decimal value, so 3.8 --> 3
+		y1 = int(y0 + 1000*(a))    # But if you want to round the number, then use np.around() function, then 3.8 --> 4.0
+		x2 = int(x0 - 1000*(-b))   # But we need integers, so use int() function after that, ie int(np.around(x))
+		y2 = int(y0 - 1000*(a))
+		cv2.line(image,(x1,y1),(x2,y2),color,2)
+	return image
+
+
+def draw_lines_abc (image, lines, color=(0, 0, 255)):
+	"""
+		Function: draw_lines_abc
+		------------------------
+		draws the provided lines, represented as (a, b, c),
+		on the provided image according to the color.
+		returns the modified image.
+	"""
+	rt_lines = [abc_to_rho_theta (l) for l in lines]
+	return draw_lines_rho_theta (image, rt_lines, color)
+
+
+
+
+
+
+
+
+
+
+####################################################################################################
 ##############################[ --- COMMON GENERATORS --- ]#########################################
 ####################################################################################################
 
@@ -183,6 +264,10 @@ def iter_board_vertices ():
 	for i in range (8):
 		for j in range (9):
 			return (i, j)
+
+
+
+
 
 
 
