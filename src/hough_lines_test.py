@@ -21,6 +21,7 @@ if __name__ == '__main__':
 	corner_classifier = pickle.load (open('./corner_data/corner_classifier.obj', 'r'))	#more data
 	board = Board(corner_classifier=corner_classifier)
 	board.add_frame (first_frame)
+	board.draw_vertices (board.current_frame)
 
 
 
