@@ -209,7 +209,7 @@ def get_chessboard_corner_candidates (image, corner_classifier):
 	return chessboard_corners
 
 
-def snap_points_to_lines (lines, points, max_distance=8):
+def snap_points_to_lines (lines, points, max_distance=10):
 	"""
 		Function: snap_points_to_lines
 		------------------------------
@@ -234,6 +234,122 @@ def snap_points_to_lines (lines, points, max_distance=8):
 		grid[i].sort (key=lambda x: x[0])
 
 	return grid
+
+
+def is_BIH_inlier (all_BIH_ip, corner, pix_dist=6):
+	"""
+		Function: is_BIH_inlier
+		-----------------------
+		given the set of BIH image points and a corner,
+		returns true if the corner is within pix_dist
+		of any BIH ip
+	"""
+	return any([(euclidean_distance(ip, corner) <= pix_dist) for ip in all_BIH_ip])
+
+
+def compute_inliers (BIH, corners):
+	"""
+		Function: compute_inliers
+		-------------------------
+		given a board-image homography and a set of all corners,
+		this will return the number that are inliers 
+	"""
+	#=====[ Step 1: get a set of all image points for vertices of board coords	]=====
+	all_BIH_ip = [board_to_image_coords (BIH, bp) for bp in all_board_points]
+
+	#=====[ Step 2: get booleans for each corner being an inlier	]=====
+	num_inliers = sum ([is_BIH_inlier (all_BIH_ip, corner) for corner in corners])
+	return num_inliers
+
+
+def evaluate_homography (horz_indices, vert_indices, horz_points_grid, vert_points_grid, corners):
+	"""
+		Function: evaluate_homography
+		-----------------------------
+		given two point grids and the indexes (we think) they correspond to on the 
+		image, this will find point correspondences, compute a homography and score it
+		returns (BIH, score), where score = number of corners on chessboard that match
+	"""
+	board_points, image_points = [], []
+	print "#####[ 	EVALUATE HOMOGRAPHY 	]#####"
+	print "horz_indices: ", horz_indices
+	print "vert_indices: ", vert_indices
+
+
+
+	#=====[ Step 1: find point correspondences	]=====
+	for i in range (len(horz_points_grid)):
+		for j in range(len(vert_points_grid)):
+
+			#=====[ get horizontal/vertical coordinates	]=====
+			board_x = horz_indices[i]
+			board_y = vert_indices[j]
+
+			#=====[ check if a point exists in intersection, add it	]=====
+			intersection = list(set(horz_points_grid[i]).intersection (set(vert_points_grid[j])))
+			if len(intersection) > 0:
+				image_points.append (intersection[0])
+				board_points.append ((board_x, board_y))
+
+
+	#=====[ Step 2: compute a homography from it	]=====
+	BIH = point_correspondences_to_BIH (board_points, image_points)
+	if (horz_indices[0] == 0) and (vert_indices[0] == 1):
+		print "=====[ (this should be the correct one) ]====="
+		for bp, ip in  zip(board_points, image_points):
+			print bp, ": ", ip
+
+	#=====[ Step 3: compute score	]=====
+	score = compute_inliers (BIH, corners)
+
+	return BIH, score
+
+
+
+
+
+def find_BIH (horz_points_grid, horz_indices, vert_points_grid, vert_indices, corners):
+	"""
+		Function: find_BIH
+		------------------
+		given two point grids and the indices that row corresponds to on the board
+		(up to a shift), this will find the point correspondences and BIH
+	"""
+
+	#=====[ Step 1: shift both indices all the way to bottom left ]=====
+	horz_indices = horz_indices - horz_indices[0] 
+	vert_indices = vert_indices - vert_indices[0]
+
+	#=====[ Step 2: initialize parameters	]=====
+	best_BIH = np.zeros ((3,3))
+	best_score = -1
+
+	#=====[ ITERATE THROUGH ALL SHIFTS	]=====
+	hi = deepcopy(horz_indices)
+	while (hi[-1] < 9):
+		print "hi: ", hi
+		vi = deepcopy (vert_indices)
+		while (vi[-1] < 9):
+			print "	vi: ", vi
+
+			#=====[ evaluate homography	]=====
+			BIH, score = evaluate_homography (hi, vi, horz_points_grid, vert_points_grid, corners)
+
+			#=====[ update best	]=====
+			if score > best_score:
+				best_score = score
+				best_BIH = BIH
+				print '				=====[ 	NEW BEST SCORE (# inliers) ]====='
+				print '				# inliers: ', best_score
+
+			#=====[ shift vi	]=====
+			vi += 1
+		hi += 1
+
+	return best_BIH
+
+
+
 
 
 def get_chessboard_lines (corners, image):
@@ -269,27 +385,11 @@ def get_chessboard_lines (corners, image):
 	horz_points_grid = snap_points_to_lines (horz_lines, corners)
 	vert_points_grid = snap_points_to_lines (vert_lines, corners)
 
-
-	# #=====[ Step 6: hough transform on points in grid to get horizontal lines	]=====
-	# all_points = [p for l in points_grid for p in l]
-	# corners_img = np.zeros (image.shape[:2], dtype=np.uint8)
-	# for p in all_points:
-	# 	corners_img[int(p[1])][int(p[0])] = 255
-	# lines = cv2.HoughLines (corners_img, 3, np.pi/180, 2)[0]
-	# lines = [rho_theta_to_abc (l) for l in lines]
-	# horz_lines = filter_by_slope (lines, lambda slope: (slope < 0.1) and (slope > -0.1))
-	# lines = [abc_to_rho_theta(l) for l in horz_lines]
-
-	# horz_lines_rt = avg_close_lines_2 (lines)
-	# # horz_lines_rt = lines
+	#=====[ Step 4: find homography	]=====
+	BIH = find_BIH (horz_points_grid, horz_indices, vert_points_grid, vert_indices, corners)
+	return BIH
 
 
-	# print horz_lines_rt
-	# print vert_lines_rt
-	# horz_lines = [rho_theta_to_abc (l) for l in horz_lines_rt]
-	# vert_lines = [rho_theta_to_abc (l) for l in vert_lines_rt]
-
-	# return horz_lines, vert_lines
 
 
 def sort_point_grid (grid, sort_coord):
@@ -634,26 +734,7 @@ def find_board_image_homography (image, corner_classifier):
 	# 	key = cv2.waitKey (30)
 
 
-
-	#=====[ Step 2: get horizontal, vertical lines (as abc)	]=====
-	horz_lines, vert_lines = get_chessboard_lines (corners, image)
-	#####[ DEBUG: DRAW HORIZONTAL, VERTICAL LINES	]#####
-	img_copy = draw_lines_abc (img_copy, horz_lines, color=(0, 0, 255))
-	img_copy = draw_lines_abc (img_copy, vert_lines, color=(0, 255, 0))
-	cv2.namedWindow ('lines')
-	cv2.imshow ('lines', img_copy)
-	key = 0
-	while key != 27:
-		key = cv2.waitKey (30)
-
-
-	#=====[ Step 4: find messy point grids	]=====
-	messy_horz_grid, messy_vert_grid = get_messy_point_grids (horz_lines, vert_lines, corners)
-
-
-	#=====[ Step 5: find best homography via messy_grid_ransac	]=====
-	BIH = messy_grid_ransac (messy_horz_grid, messy_vert_grid, corners, image)
-
+	BIH = get_chessboard_lines (corners, image)
 	return BIH
 
 
