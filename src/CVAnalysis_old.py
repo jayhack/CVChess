@@ -1,5 +1,3 @@
-import os
-from subprocess import call
 from copy import deepcopy
 from random import choice
 import cv2
@@ -8,7 +6,6 @@ from numpy import matrix, concatenate
 from numpy.linalg import inv, pinv, svd
 from sklearn.cluster import KMeans
 from util import *
-
 
 
 ####################################################################################################
@@ -184,6 +181,32 @@ def cluster_points (points, cluster_dist=7):
 	return new_points
 
 
+def cluster_lines (lines, num_clusters):
+	"""
+		Function: cluster_lines
+		-----------------------
+		given a list of lines represented as (a, b, c), this will
+		this will return a list of lines with clusters compressed 
+		to their centroid 
+		comparison_function: returns true if two lines are in a cluster
+	"""
+	#=====[ Step 1: init old_lines, new_lines	]=====
+	old_lines = np.array (lines)
+	new_lines = []
+
+	#=====[ ITERATE OVER OLD_LINES	]=====
+	while len(old_lines) > 0:
+
+		l1 = old_lines [0]
+		idx = np.array([comparison_function(l1, l2) for l2 in old_lines])
+		lines_cluster = old_lines[idx]
+		new_line = get_centroid (lines_cluster)
+		new_lines.append (new_line)
+		old_lines = old_lines[np.invert(idx)]
+
+	return new_lines
+
+
 def get_chessboard_corner_candidates (image, corner_classifier):
 	"""
 		Function: get_chessboard_corner_candidates
@@ -207,6 +230,72 @@ def get_chessboard_corner_candidates (image, corner_classifier):
 	chessboard_corners = cluster_points (chessboard_corners)
 
 	return chessboard_corners
+
+
+def filter_by_slope (lines, slope_predicate):
+	"""
+		Function: filter_by_slope
+		-------------------------
+		given a list of lines in (a, b, c) format, this will return 
+		another list of lines in same format where all pass 'true' on 
+		'slope_predicate'
+	"""
+	slopes = [abs(l[0]/l[1]) if l[1] != 0 else 10000 for l in lines]
+	idx = np.array([slope_predicate (s) for s in slopes])
+	return [l for l, i in zip(lines, idx) if i]
+
+
+def avg_close_lines_vert (lines_list):
+	"""
+		Function: avg_close_points 
+		--------------------------
+		given a list of keypoints, this returns another list of 
+		(x, y) pairs for points that are very close 
+	"""
+	lines = [(rho, theta) for rho, theta in lines_list]
+
+	#=====[ Step 1: get points out of each one	]=====
+	old_lines = np.array(lines)
+
+	#=====[ Step 2: get new_points	]=====
+	new_lines = []
+	while len(old_lines	) > 1:
+		l1 = old_lines [0]
+		distances = np.array([abs(l1[1] - l2[1]) for l2 in old_lines])
+		idx = (distances < 0.1)
+		lines_cluster = old_lines[idx]
+		new_line = get_centroid (lines_cluster)
+		new_lines.append (new_line)
+		old_lines = old_lines[np.invert(idx)]
+
+	return new_lines
+
+
+def avg_close_lines_2 (lines_list):
+	"""
+		Function: avg_close_points 
+		--------------------------
+		given a list of keypoints, this returns another list of 
+		(x, y) pairs for points that are very close 
+	"""
+	lines = [(rho, theta) for rho, theta in lines_list]
+
+	#=====[ Step 1: get points out of each one	]=====
+	old_lines = np.array(lines)
+
+	#=====[ Step 2: get new_points	]=====
+	new_lines = []
+	while len(old_lines	) > 1:
+		l1 = old_lines [0]
+		distances = np.array([abs(l1[0] - l2[0]) for l2 in old_lines])
+		idx = (distances < 10)
+		lines_cluster = old_lines[idx]
+		new_line = get_centroid (lines_cluster)
+		new_lines.append (new_line)
+		old_lines = old_lines[np.invert(idx)]
+
+	return new_lines
+
 
 
 def snap_points_to_lines (lines, points, max_distance=8):
@@ -244,50 +333,41 @@ def get_chessboard_lines (corners, image):
 		(horizontal_lines, vertical_lines) represented as (a, b, c)
 		pairs 
 	"""
-	#=====[ Step 1: make an image for Matlab scripts ]=====
+	#=====[ Step 1: get lines via Hough transform on corners ]=====
 	corners_img = np.zeros (image.shape[:2], dtype=np.uint8)
 	for corner in corners:
 		corners_img[int(corner[1])][int(corner[0])] = 255
+	lines = cv2.HoughLines (corners_img, 3, np.pi/180, 4)[0]
 
-	#=====[ Step 2: save to IPC	]=====
-	cv2.imwrite ('./IPC/corners.png', corners_img)
+	#=====[ Step 2: get vertical lines	]=====
+	# lines = avg_close_lines_vert (lines)
+	lines = [rho_theta_to_abc(l) for l in lines]
+	vert_lines = filter_by_slope (lines, lambda slope: (slope > 1) or (slope < -1))
+	vert_lines_rt = [abc_to_rho_theta (l) for l in vert_lines]
 
-	#=====[ Step 3: run matlab script	]=====
-	os.chdir ('./autofind_lines')
-	call(["/Applications/MATLAB_R2013b.app/bin/matlab", "-nojvm", "-nodisplay", "-nosplash", "-r ", "autofind_lines"])
-	os.chdir ('../')
+	#=====[ Step 3: snap points to grid ]===
+	points_grid = snap_points_to_lines (vert_lines_rt, corners)
 
-	#=====[ Step 4: get the lines back	]=====
-	horz_lines = np.genfromtxt ('./IPC/horizontal_lines.csv', delimiter=',')
-	vert_lines = np.genfromtxt ('./IPC/vertical_lines.csv', delimiter=',')
+	#=====[ Step 6: hough transform on points in grid to get horizontal lines	]=====
+	all_points = [p for l in points_grid for p in l]
+	corners_img = np.zeros (image.shape[:2], dtype=np.uint8)
+	for p in all_points:
+		corners_img[int(p[1])][int(p[0])] = 255
+	lines = cv2.HoughLines (corners_img, 3, np.pi/180, 2)[0]
+	lines = [rho_theta_to_abc (l) for l in lines]
+	horz_lines = filter_by_slope (lines, lambda slope: (slope < 0.1) and (slope > -0.1))
+	lines = [abc_to_rho_theta(l) for l in horz_lines]
 
-	print horz_lines
-	print vert_lines
-
-
-	# #=====[ Step 3: snap points to grid ]===
-	# points_grid = snap_points_to_lines (vert_lines_rt, corners)
-
-	# #=====[ Step 6: hough transform on points in grid to get horizontal lines	]=====
-	# all_points = [p for l in points_grid for p in l]
-	# corners_img = np.zeros (image.shape[:2], dtype=np.uint8)
-	# for p in all_points:
-	# 	corners_img[int(p[1])][int(p[0])] = 255
-	# lines = cv2.HoughLines (corners_img, 3, np.pi/180, 2)[0]
-	# lines = [rho_theta_to_abc (l) for l in lines]
-	# horz_lines = filter_by_slope (lines, lambda slope: (slope < 0.1) and (slope > -0.1))
-	# lines = [abc_to_rho_theta(l) for l in horz_lines]
-
-	# horz_lines_rt = avg_close_lines_2 (lines)
-	# # horz_lines_rt = lines
+	horz_lines_rt = avg_close_lines_2 (lines)
+	# horz_lines_rt = lines
 
 
-	# print horz_lines_rt
-	# print vert_lines_rt
-	# horz_lines = [rho_theta_to_abc (l) for l in horz_lines_rt]
-	# vert_lines = [rho_theta_to_abc (l) for l in vert_lines_rt]
+	print horz_lines_rt
+	print vert_lines_rt
+	horz_lines = [rho_theta_to_abc (l) for l in horz_lines_rt]
+	vert_lines = [rho_theta_to_abc (l) for l in vert_lines_rt]
 
-	# return horz_lines, vert_lines
+	return horz_lines, vert_lines
 
 
 def sort_point_grid (grid, sort_coord):
