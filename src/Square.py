@@ -35,9 +35,17 @@ class Square:
 		self.image_region = None
 		self.last_image_region = None
 
+		#=====[ Step 3: init image regions normalized	]=====
+		self.image_region_normalized = None
+		self.last_image_region_normalized = None
+
 		#=====[ Step 3: init contents histograms ]=====
 		self.contents_histogram = None
 		self.last_contents_histogram = None
+
+		#=====[ Step 3: init edges	]=====
+		self.edges = None
+		self.last_edges = None
 
 
 	
@@ -118,7 +126,16 @@ class Square:
 
 		#=====[ Step 4: apply mask (turns outside pixels to black)	]=====
 		idx = (self.image_region_mask == 0)
-		self.image_region[idx] = 255
+		self.image_region[idx] = 0
+
+		#=====[ Step 5: get intensity normalized image region	]=====
+		self.last_image_region_normalized = self.image_region_normalized
+		totals = np.sum (self.image_region, 2, dtype=np.float)
+		self.image_region_normalized = self.image_region.astype(np.float)
+		self.image_region_normalized[:, :, 0] = np.divide (self.image_region_normalized[:, :, 0], totals) * 255
+		self.image_region_normalized[:, :, 1] = np.divide (self.image_region_normalized[:, :, 1], totals) * 255
+		self.image_region_normalized[:, :, 2] = np.divide (self.image_region_normalized[:, :, 2], totals) * 255
+		self.image_region_normalized = self.image_region_normalized.astype (np.uint8);
 
 
 	def update_contents_histogram (self):
@@ -132,12 +149,25 @@ class Square:
 
 		#=====[ Step 1: get histograms for each	]=====
 		num_buckets = [32]
-		self.b_hist = cv2.calcHist(self.image_region, [0], None, num_buckets, [1, 256])
-		self.g_hist = cv2.calcHist(self.image_region, [1], None, num_buckets, [1, 256])
-		self.r_hist = cv2.calcHist(self.image_region, [2], None, num_buckets, [1, 256])	
+		self.b_hist = cv2.calcHist(self.image_region_normalized, [0], None, num_buckets, [1, 256])
+		self.g_hist = cv2.calcHist(self.image_region_normalized, [1], None, num_buckets, [1, 256])
+		self.r_hist = cv2.calcHist(self.image_region_normalized, [2], None, num_buckets, [1, 256])
 
 		#=====[ Step 3: update contents_histogram, last_contents_histogram	]=====
 		self.contents_histogram = np.concatenate ([self.b_hist, self.g_hist, self.r_hist], 0).flatten ()
+
+
+	def update_edges (self):
+		"""
+			PRIVATE: update_contents_edges
+			------------------------------
+			sets self.contents_edges as an image containing a canny
+			edge detector applied to it
+		"""
+		self.last_edges = self.edges
+		gray = cv2.cvtColor (self.image_region, cv2.COLOR_BGR2GRAY)
+		self.edges = cv2.Canny (gray, 50, 40)
+
 
 
 	def add_frame (self, image):
@@ -153,8 +183,8 @@ class Square:
 		#=====[ Step 2: update contents histograms	]=====
 		self.update_contents_histogram ()
 
-		
-
+		#=====[ Step 3: update edges	]=====
+		self.update_edges ()
 
 
 
@@ -163,8 +193,6 @@ class Square:
 	##############################[ --- EXTRACTING INFO FROM IMAGE --- ]################################
 	####################################################################################################
 
-
-
 	def get_occlusion_change_features (self):
 		"""
 			PUBLIC: get_occlusion_change_features
@@ -172,9 +200,8 @@ class Square:
 			returns a numpy array representing this square, optimized
 			for discerning occlusion 
 		"""
-		#=====[ Step 1: compare current/last histograms	]=====
-		hist_diff = cv2.compareHist (self.contents_histogram, self.last_contents_histogram, 'CV_COMP_CORREL')
-		return hist_diff
+		# return np.sum(np.abs(self.image_region_normalized - self.last_image_region_normalized))
+		return cv2.compareHist (self.contents_histogram, self.last_contents_histogram, 3)
 
 
 	def get_occlusion_change (self):
@@ -184,10 +211,9 @@ class Square:
 			sets self.occlusion in response to the current contents 
 			of the square 
 		"""
-		#=====[ Step 1: update contents histogram	]=====
-		self.update_contents_histogram ()
-
-		#=====[ Step 2: 	]=====
+		#=====[ Step 1: get occlusion change features	]=====
+		features = self.get_occlusion_change_features ()
+		return features
 
 
 
@@ -215,7 +241,27 @@ class Square:
 			cv2.circle (image, (int(vertex[0]), int(vertex[1])), 5, (0, 0, 255))
 
 
+	def show_image_region_normalized (self):
 
+		print self.an
+		cv2.imshow ('IMAGE_REGION_NORMALIZED', self.image_region_normalized)
+		key = 0
+		while key != 27:
+			key = cv2.waitKey (30)
+
+
+	def show_edges (self):
+
+		# diff = (self.image_region_normalized - self.last_image_region_normalized)
+		# gray = cv2.cvtColor ()
+		# cv2.imshow ('NORMALIZED', cv2.pyrUp(cv2.pyrUp(np.abs(self.image_region_normalized - self.last_image_region_normalized))))
+
+		cv2.imshow ('EDGES', cv2.pyrUp(cv2.pyrUp(self.edges)))
+		cv2.imshow ('REGION', cv2.pyrUp(cv2.pyrUp(self.image_region)))
+
+		key = 0
+		while key != 27:
+			key = cv2.waitKey (30)
 
 
 

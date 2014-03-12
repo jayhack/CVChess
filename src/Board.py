@@ -87,8 +87,7 @@ class Board:
 			for each square, gets the probability that it is now occluded
 		"""
 		for square in self.iter_squares ():
-			square.get_occlusion ()
-
+			square.get_occlusion_change ()
 
 
 	def get_occupation_probabilities (self, image):
@@ -379,9 +378,9 @@ class Board:
 
 	def draw_vertices (self, image):
 		"""
-			PUBLIC: draw_squares
-			--------------------
-			given a draw, this will draw each of the squares in self.squares
+			PUBLIC: draw_vertices
+			---------------------
+			draws all square vertices on the image
 		"""
 		#=====[ Step 1: draw all vertices	]=====
 		for square in self.iter_squares ():
@@ -390,6 +389,37 @@ class Board:
 		#=====[ Step 2: draw them to the screen	]=====
 		cv2.namedWindow ('board.draw_vertices')
 		cv2.imshow ('board.draw_vertices', image)
+
+
+	def draw_top_occlusion_changes (self, image, num_squares=5):
+		"""
+			PUBLIC: draw_top_occlusion_changes
+			----------------------------------
+			draws the surfaces of the top 'num_squares' squares in terms of 
+			their occlusion changes 
+		"""
+		#=====[ Step 1: get threshold	]=====
+		occlusion_changes = [square.get_occlusion_change () for square in self.iter_squares ()]
+		occlusion_changes.sort ()
+		threshold = occlusion_changes[-num_squares]
+		
+		#=====[ Step 2: draw all qualifying squares	]=====
+		for square in self.iter_squares ():
+			if square.get_occlusion_change () >= threshold:
+				print square.get_occlusion_change ()
+				image = square.draw_surface (image)
+
+		#=====[ Step 3: draw to screen and wait	]=====
+		cv2.namedWindow ('board.draw_top_occlusion_changes')
+		cv2.imshow ('board.draw_top_occlusion_changes', image)
+		key = 0
+		while key != 27:
+			key = cv2.waitKey (30)
+
+	def show_square_edges (self):
+
+		for square in self.iter_squares ():
+			square.show_edges ()
 
 
 
