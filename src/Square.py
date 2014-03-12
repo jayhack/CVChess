@@ -29,15 +29,16 @@ class Square:
 		#=====[ Step 1: algebraic notation/colors	]=====
 		self.an = algebraic_notation
 		self.get_colors (self.an)
-
-		#=====[ Step 2: get vertices in board/image coords	]=====
 		self.get_vertices (BIH)
 
-		#=====[ Step 3: extract image region corresponding to this square	]=====
-		self.get_image_region (image)
+		#=====[ Step 2: init image regions	]=====
+		self.image_region = None
+		self.last_image_region = None
 
-		#=====[ Step 3: find a histogram of the content sof self.image_region ]=====
-		self.get_contents_histogram ()
+		#=====[ Step 3: init contents histograms ]=====
+		self.contents_histogram = None
+		self.last_contents_histogram = None
+
 
 	
 	def __str__ (self):
@@ -54,10 +55,8 @@ class Square:
 		return '\n'.join ([title, top_left, top_right, bottom_right, bottom_left])
 
 
-
-
 	####################################################################################################
-	##############################[ --- EXTRACTING INFO FROM IMAGE --- ]################################
+	##############################[ --- INITIAL IMAGE ANALYSIS --- ]####################################
 	####################################################################################################
 
 	def get_colors (self, algebraic_notation):
@@ -86,14 +85,24 @@ class Square:
 		self.image_vertices	= [board_to_image_coords (BIH, bv) for bv in self.board_vertices]
 
 
-	def get_image_region (self, image):
+
+
+
+
+	####################################################################################################
+	##############################[ --- UPDATING WITH FRAMES --- ]######################################
+	####################################################################################################
+
+	def update_image_region (self, image):
 		"""
-			PRIVATE: get_image_region
-			-------------------------
+			PRIVATE: update_image_region
+			----------------------------
 			given an image, sets self.image_region with a the region of the image
 			that corresponds to this square; additionally, applies a mask to the 
 			areas outside of the square 
 		"""
+		self.last_image_region = self.image_region
+
 		#=====[ Step 1: get bounding box coordinates	]=====
 		iv = np.array (self.image_vertices).astype(int)
 		x_min, x_max = min(iv[:, 0]), max(iv[:, 0])
@@ -109,37 +118,77 @@ class Square:
 
 		#=====[ Step 4: apply mask (turns outside pixels to black)	]=====
 		idx = (self.image_region_mask == 0)
-		self.image_region[idx] = 0
+		self.image_region[idx] = 255
 
 
-	def get_contents_histogram (self):
+	def update_contents_histogram (self):
 		"""
-			PRIVATE: get_contents_histogram
-			-------------------------------
-			sets self.get_contents_histogram with a histogram of the pixel values
-			that occur within the *masked* self.image_region
+			PRIVATE: update_contents_histogram
+			----------------------------------
+			sets self.contents_histogram with a histogram of the colors in self.image_region,
+			also sets up self.last_contents_histogram to the previous one.
 		"""
+		self.last_contents_histogram = self.contents_histogram
+
 		#=====[ Step 1: get histograms for each	]=====
 		num_buckets = [32]
 		self.b_hist = cv2.calcHist(self.image_region, [0], None, num_buckets, [1, 256])
 		self.g_hist = cv2.calcHist(self.image_region, [1], None, num_buckets, [1, 256])
-		self.r_hist = cv2.calcHist(self.image_region, [2], None, num_buckets, [1, 256])		
+		self.r_hist = cv2.calcHist(self.image_region, [2], None, num_buckets, [1, 256])	
 
-		#=====[ Step 3: concatenate to get hist_features	]=====
+		#=====[ Step 3: update contents_histogram, last_contents_histogram	]=====
 		self.contents_histogram = np.concatenate ([self.b_hist, self.g_hist, self.r_hist], 0).flatten ()
 
-	def add_occlusion (self, occlusion):
-		self.occlusion = occlusion
 
-
-	def get_occlusion_features (self):
+	def add_frame (self, image):
 		"""
-			PUBLIC: get_occlusion_features
-			------------------------------
+			PUBLIC: add_frame
+			-----------------
+			call this function to update all info about the square when a new frame 
+			arrives
+		"""
+		#=====[ Step 1: update image_region	]=====
+		self.update_image_region (image)
+
+		#=====[ Step 2: update contents histograms	]=====
+		self.update_contents_histogram ()
+
+		
+
+
+
+
+
+	####################################################################################################
+	##############################[ --- EXTRACTING INFO FROM IMAGE --- ]################################
+	####################################################################################################
+
+
+
+	def get_occlusion_change_features (self):
+		"""
+			PUBLIC: get_occlusion_change_features
+			-------------------------------------
 			returns a numpy array representing this square, optimized
 			for discerning occlusion 
 		"""
-		return np.concatenate([[self.color], self.contents_histogram])
+		#=====[ Step 1: compare current/last histograms	]=====
+		hist_diff = cv2.compareHist (self.contents_histogram, self.last_contents_histogram, 'CV_COMP_CORREL')
+		return hist_diff
+
+
+	def get_occlusion_change (self):
+		"""
+			PUBLIC: get_occlusion_change
+			----------------------------
+			sets self.occlusion in response to the current contents 
+			of the square 
+		"""
+		#=====[ Step 1: update contents histogram	]=====
+		self.update_contents_histogram ()
+
+		#=====[ Step 2: 	]=====
+
 
 
 	####################################################################################################

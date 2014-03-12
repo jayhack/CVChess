@@ -4,8 +4,8 @@ import cv2
 if __name__ == "__main__":
 
 	#=====[ Step 1: load in images	]=====
-	img1_raw = cv2.imread ('../data/micahboard/1.jpg')
-	img2_raw = cv2.imread ('../data/micahboard/2.jpg')
+	img1_raw = cv2.imread ('../data/game1/01.jpg')
+	img2_raw = cv2.imread ('../data/game1/02.jpg')
 
 	#=====[ Step 2: convert to grayscale	]====
 	img1_gray = cv2.cvtColor (img1_raw, cv2.COLOR_BGR2GRAY)
@@ -23,6 +23,9 @@ if __name__ == "__main__":
 	erosion = cv2.erode (difference, kernel)
 	dilation = cv2.dilate (erosion, kernel)
 	img1_large = cv2.pyrUp(cv2.pyrUp(dilation))
+
+	cv2.namedWindow ('test')
+	cv2.imshow ('test', difference)
 	
 
 

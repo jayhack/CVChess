@@ -60,7 +60,6 @@ class Board:
 		self.num_frames += 1
 
 
-
 	def add_frame (self, new_frame):
 		"""
 			PRIVATE: add_frame
@@ -71,29 +70,25 @@ class Board:
 		#=====[ Step 1: update frames	]=====
 		self.update_frames (new_frame)
 
-		#=====[ CASE: first frame ]=====
+		#=====[ Step 2: find params on first frame ]=====
 		if self.num_frames == 1:
-
 			self.find_BIH ()
 			self.construct_squares ()
 
-		#=====[ CASE: subsequent frames	]=====
-		else:
-			pass
-			#=====[ Step 2: get changes in occlusion	]=====
-			# occlusion_changes = self.get_occlusion_changes ()
-
-			#=====[ Step 3: infer the most likely move	]=====
-			# self.infer_move (occlusion_changes)
+		#=====[ Step 3: update squares	]=====
+		for square in self.iter_squares ():
+			square.add_frame (new_frame)
 
 
 	def get_occlusion_changes (self):
 		"""
 			PRIVATE: get_occlusion_changes
 			------------------------------
-			for each square, gets the change in probability
+			for each square, gets the probability that it is now occluded
 		"""
-		raise NotImplementedError
+		for square in self.iter_squares ():
+			square.get_occlusion ()
+
 
 
 	def get_occupation_probabilities (self, image):

@@ -310,5 +310,16 @@ def print_status (stage, status):
 	print "-----> " + stage + ": " + status
 
 
+def print_header (header_text):	
+	"""
+		Function: print_header
+		----------------------
+		prints the specified header text in a salient way
+	"""
+	print "-" * (len(header_text) + 12)
+	print ('#' * 5) + ' ' +  header_text + ' ' + ('#' * 5)
+	print "-" * (len(header_text) + 12)
+
+
 
 
