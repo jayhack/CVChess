@@ -6,7 +6,7 @@ import numpy as np
 import Chessnut
 import CVAnalysis
 from Square import Square
-from util import iter_algebraic_notations
+from util import iter_algebraic_notations, algebraic_notation_to_board_coords
 
 class Board:
 	"""
@@ -86,8 +86,29 @@ class Board:
 			------------------------------
 			for each square, gets the probability that it is now occluded
 		"""
+		#=====[ Step 1: update each square's occlusion	]=====
 		for square in self.iter_squares ():
 			square.get_occlusion_change ()
+
+		#=====[ Step 2: get a matrix of all squares and their occlusions 	]=====
+		squares_added = {square.an:square.occlusion_change for square in self.iter_squares() if square.occlusion_change_direction == 'added'}
+		squares_subtracted = {square.an:square.occlusion_change for square in self.iter_squares() if square.occlusion_change_direction == 'subtracted'}		
+
+		#=====[ Step 3: get top 3 from each	]=====
+		added_t3 = sorted([(key, value) for key, value in squares_added.items ()], key=lambda x: x[1], reverse=True)[:3]
+		print "ADDED: ", added_t3
+		subtracted_t3 = sorted([(key, value) for key, value in squares_subtracted.items ()], key=lambda x: x[1], reverse=True)[:3]
+		print "SUBTRACTED: ", subtracted_t3
+
+		added_img = deepcopy(self.current_frame)
+		for an, value in added_t3:
+			added_img = self.draw_square_an (an, added_img)
+		cv2.imshow ("ADDED", added_img)
+
+		sub_img = deepcopy(self.current_frame)
+		for an, value in subtracted_t3:
+			sub_img = self.draw_square_an (an, sub_img)
+		cv2.imshow ("SUBTRACTED", sub_img)
 
 
 	def get_occupation_probabilities (self, image):
@@ -131,8 +152,6 @@ class Board:
 		self.BIH = CVAnalysis.find_board_image_homography (self.current_frame, self.corner_classifier)
 
 
-
-
 	def construct_squares (self):
 		"""
 			PRIVATE: construct_squares
@@ -148,9 +167,6 @@ class Board:
 				new_square = Square (self.current_frame, self.BIH, square_an)
 				square_location = new_square.board_vertices[0]
 				self.squares [square_location[0]][square_location[1]] = new_square
-
-
-
 
 
 
@@ -391,6 +407,20 @@ class Board:
 		cv2.imshow ('board.draw_vertices', image)
 
 
+	def draw_square_an (self, an, image):
+		"""
+			PUBLIC: draw_square_an
+			----------------------
+			given a square's algebraic notation, this function
+			will draw it on the provided image, then return the image 
+		"""
+		board_coords = algebraic_notation_to_board_coords (an)[0]
+		square = self.squares[board_coords[0]][board_coords[1]]
+		image = square.draw_surface (image)
+		return image 
+
+
+
 	def draw_top_occlusion_changes (self, image, num_squares=5):
 		"""
 			PUBLIC: draw_top_occlusion_changes
@@ -403,18 +433,32 @@ class Board:
 		occlusion_changes.sort ()
 		threshold = occlusion_changes[-num_squares]
 		
-		#=====[ Step 2: draw all qualifying squares	]=====
+
+		#=====[ Step 2: draw qualifying squares with 'added' ]=====
+		add_img = deepcopy (image)
 		for square in self.iter_squares ():
 			if square.get_occlusion_change () >= threshold:
-				print square.get_occlusion_change ()
-				image = square.draw_surface (image)
+				if square.piece_added_or_subtracted () == 'added':
+					print square.get_occlusion_change ()
+					add_img = square.draw_surface (add_img)
+		cv2.namedWindow ('PIECES ADDED')
+		cv2.imshow ('PIECES ADDED', add_img)
 
-		#=====[ Step 3: draw to screen and wait	]=====
-		cv2.namedWindow ('board.draw_top_occlusion_changes')
-		cv2.imshow ('board.draw_top_occlusion_changes', image)
+
+		#=====[ Step 3: draw qualifying squares with 'subtracted'	]=====
+		sub_img = deepcopy (image)
+		for square in self.iter_squares ():
+			if square.get_occlusion_change () >= threshold:
+				if square.piece_added_or_subtracted () == 'subtracted':
+					print square.get_occlusion_change ()
+					sub_img = square.draw_surface (sub_img)
+		cv2.namedWindow ('PIECES SUBTRACTED')
+		cv2.imshow ('PIECES SUBTRACTED', sub_img)
+
 		key = 0
 		while key != 27:
 			key = cv2.waitKey (30)
+
 
 	def show_square_edges (self):
 

@@ -32,7 +32,8 @@ def image_to_board_coords (BIH, image_coords):
 	return dehomogenize(inv(BIH) * homogenize(image_coords))
 
 
-an_letters, an_numbers = 'ABCDEFGH', range(1, 9)
+# an_letters, an_numbers = 'ABCDEFGH', range(1, 9)
+an_letters, an_numbers = 'HGFEDCBA', range(8, 0, -1)
 def algebraic_notation_to_board_coords (an):
 	"""
 		Function: algebraic_notation_to_board_coords

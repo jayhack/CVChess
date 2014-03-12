@@ -39,13 +39,18 @@ class Square:
 		self.image_region_normalized = None
 		self.last_image_region_normalized = None
 
-		#=====[ Step 3: init contents histograms ]=====
+		#=====[ Step 4: init contents histograms ]=====
 		self.contents_histogram = None
 		self.last_contents_histogram = None
 
-		#=====[ Step 3: init edges	]=====
+		#=====[ Step 5: init edges	]=====
 		self.edges = None
 		self.last_edges = None
+
+		#=====[ Step 6: get initial histogram	]=====
+		self.update_image_region (image)
+		self.update_contents_histogram ()
+		self.unoccluded_histogram = self.contents_histogram
 
 
 	
@@ -169,7 +174,6 @@ class Square:
 		self.edges = cv2.Canny (gray, 50, 40)
 
 
-
 	def add_frame (self, image):
 		"""
 			PUBLIC: add_frame
@@ -193,6 +197,25 @@ class Square:
 	##############################[ --- EXTRACTING INFO FROM IMAGE --- ]################################
 	####################################################################################################
 
+	def piece_added_or_subtracted (self):
+		"""
+			PUBLIC: piece_added_or_subtracted
+			---------------------------------
+			returns 'added' if something has been added here,
+			'subtracted' if it seems that a piece has been
+			subtracted 
+		"""
+		#=====[ Step 1: get diffs from initial hist ]=====
+		current_diff = cv2.compareHist (self.contents_histogram, self.unoccluded_histogram, 3)
+		last_diff = cv2.compareHist (self.last_contents_histogram, self.unoccluded_histogram, 3)
+
+		#=====[ Step 2: return whichever is greater	]=====
+		if current_diff > last_diff:
+			return 'added'
+		else:
+			return 'subtracted'
+
+
 	def get_occlusion_change_features (self):
 		"""
 			PUBLIC: get_occlusion_change_features
@@ -212,8 +235,11 @@ class Square:
 			of the square 
 		"""
 		#=====[ Step 1: get occlusion change features	]=====
-		features = self.get_occlusion_change_features ()
-		return features
+		self.occlusion_change = self.get_occlusion_change_features ()
+
+		#=====[ Step 2: get occlusion change *direction*	]=====
+		self.occlusion_change_direction = self.piece_added_or_subtracted ()
+
 
 
 
@@ -227,7 +253,10 @@ class Square:
 			--------------------
 			draws the surface of this square on the image
 		"""
-		cv2.fillConvexPoly(image, np.array(self.image_vertices).astype(int), self.draw_color)
+		# cv2.fillConvexPoly(image, np.array(self.image_vertices).astype(int), self.draw_color) #filled
+		iv = np.array(self.image_vertices).astype(int)
+		for i in range(len(self.image_vertices)):
+			cv2.line (image, tuple(iv[i % len(self.image_vertices)]), tuple(iv[(i+1) % len(self.image_vertices)]), self.draw_color, thickness=3)
 		return image
 
 
