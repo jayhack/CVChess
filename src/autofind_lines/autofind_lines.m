@@ -8,10 +8,14 @@ function [horizontal_lines, vertical_lines] = autofind_lines ()
 	%=====[ Step 1: get corners image from IPC	]=====
 	corners_img_name = '../IPC/corners.png';
 	corners_img = imread (corners_img_name);
+	% imshow (corners_img);
 
 	%=====[ Step 2: get horizontal/vertical lines, along with indices up to a shift	]=====
 	horizontal_lines = get_horizontal_lines (corners_img);
 	vertical_lines = get_vertical_lines (corners_img);
+
+	horizontal_lines
+	vertical_lines
 
 	%=====[ Step 3: write them to a file	]=====
 	dlmwrite ('../IPC/horizontal_lines.csv', horizontal_lines);

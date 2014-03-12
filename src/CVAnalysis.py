@@ -236,7 +236,7 @@ def snap_points_to_lines (lines, points, max_distance=10):
 	return grid
 
 
-def is_BIH_inlier (all_BIH_ip, corner, pix_dist=6):
+def is_BIH_inlier (all_BIH_ip, corner, pix_dist=10):
 	"""
 		Function: is_BIH_inlier
 		-----------------------
@@ -333,6 +333,8 @@ def find_BIH (horz_points_grid, horz_indices, vert_points_grid, vert_indices, co
 			#=====[ evaluate homography	]=====
 			BIH, score = evaluate_homography (hi, vi, horz_points_grid, vert_points_grid, corners)
 			BIH_score_list.append ((BIH, score))
+
+			print "		", score
 
 			#=====[ shift vi ]=====
 			vi += 1

@@ -1,6 +1,6 @@
-function indexed_lines = horizontal_ransac (lines)
-% Function: horizontal_ransac
-% ---------------------------
+function indexed_lines = vertical_ransac (lines, image_height)
+% Function: vertical_ransac
+% -------------------------
 % lines: 2xN vector, with ith col = [rho; theta] of the ith line
 % returns: 
 %	- indexed_lines: 3xN vector, where 3rd column is index; (up to a shift)
@@ -8,14 +8,18 @@ function indexed_lines = horizontal_ransac (lines)
 % 	(returns them from left to right)
 
 	%=====[ Step 1: preprocess lines ]=====
-	lines
-	[Y, sort_permutation] = sort (lines, 2, 'descend');
-	sort_permutation = sort_permutation(2, :);	%stores the permutation for sorting thetas
-	sorted_lines = lines;
-	sorted_lines(1, :) = lines(1, sort_permutation);
-	sorted_lines(2, :) = lines(2, sort_permutation);
-	y = sorted_lines(2, :);
+	lines_rt = [lines; get_y_intercepts(lines, image_height)]; 			% add y intercepts
+	lines_rt
+	[Y, sort_permutation] = sort (lines_rt, 2, 'ascend');		% sort by y intercepts
+	sort_permutation = sort_permutation(3, :);	%stores the permutation for sorting thetas
+	sorted_lines = lines_rt;
+	sorted_lines
+	sorted_lines(1, :) = lines_rt(1, sort_permutation);
+	sorted_lines(2, :) = lines_rt(2, sort_permutation);
+	sorted_lines(3, :) = lines_rt(3, sort_permutation);
+	y = sorted_lines(3, :);
 
+	sorted_lines
 
 	%=====[ Step 2: initialize parameters for RANSAC ]=====
 	indices = combnk(1:9, 5);
@@ -45,11 +49,14 @@ function indexed_lines = horizontal_ransac (lines)
 			best_Rsq = Rsq;
 			best_p = p;
 			best_indices = X;
+			% disp('=====[ NEW BEST ]=====')
+			% best_indices
+			% best_Rsq
 		end
 	end
 
 	%=====[ Step 7: construct indexed_lines	]=====
-	indexed_lines = vertcat(sorted_lines, best_indices);
+	indexed_lines = vertcat(sorted_lines (1:2, :), best_indices);
 
 
 
