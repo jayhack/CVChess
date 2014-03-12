@@ -163,7 +163,6 @@ class Square:
 			draws the verties of this square on the image
 		"""
 		for vertex in self.image_vertices:
-			print vertex
 			cv2.circle (image, (int(vertex[0]), int(vertex[1])), 5, (0, 0, 255))
 
 

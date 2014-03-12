@@ -9,17 +9,13 @@ function indexed_lines = vertical_ransac (lines, image_height)
 
 	%=====[ Step 1: preprocess lines ]=====
 	lines_rt = [lines; get_y_intercepts(lines, image_height)]; 			% add y intercepts
-	lines_rt
 	[Y, sort_permutation] = sort (lines_rt, 2, 'ascend');		% sort by y intercepts
 	sort_permutation = sort_permutation(3, :);	%stores the permutation for sorting thetas
 	sorted_lines = lines_rt;
-	sorted_lines
 	sorted_lines(1, :) = lines_rt(1, sort_permutation);
 	sorted_lines(2, :) = lines_rt(2, sort_permutation);
 	sorted_lines(3, :) = lines_rt(3, sort_permutation);
 	y = sorted_lines(3, :);
-
-	sorted_lines
 
 	%=====[ Step 2: initialize parameters for RANSAC ]=====
 	indices = combnk(1:9, 5);

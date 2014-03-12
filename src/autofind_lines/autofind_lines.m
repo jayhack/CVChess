@@ -14,9 +14,6 @@ function [horizontal_lines, vertical_lines] = autofind_lines ()
 	horizontal_lines = get_horizontal_lines (corners_img);
 	vertical_lines = get_vertical_lines (corners_img);
 
-	horizontal_lines
-	vertical_lines
-
 	%=====[ Step 3: write them to a file	]=====
 	dlmwrite ('../IPC/horizontal_lines.csv', horizontal_lines);
 	dlmwrite('../IPC/vertical_lines.csv', vertical_lines);

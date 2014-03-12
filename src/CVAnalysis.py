@@ -275,9 +275,9 @@ def evaluate_homography (horz_indices, vert_indices, horz_points_grid, vert_poin
 		returns (BIH, score), where score = number of corners on chessboard that match
 	"""
 	board_points, image_points = [], []
-	print "#####[ 	EVALUATE HOMOGRAPHY 	]#####"
-	print "horz_indices: ", horz_indices
-	print "vert_indices: ", vert_indices
+	# print "#####[ 	EVALUATE HOMOGRAPHY 	]#####"
+	# print "horz_indices: ", horz_indices
+	# print "vert_indices: ", vert_indices
 
 
 	#=====[ Step 1: find point correspondences	]=====
@@ -322,16 +322,16 @@ def find_BIH (horz_points_grid, horz_indices, vert_points_grid, vert_indices, co
 	#=====[ ITERATE THROUGH ALL SHIFTS	]=====
 	hi = deepcopy(horz_indices)
 	while (hi[-1] < 9):
-		print "hi: ", hi
+		# print "hi: ", hi
 		vi = deepcopy (vert_indices)
 		while (vi[-1] < 9):
-			print "	vi: ", vi
+			# print "	vi: ", vi
 
 			#=====[ evaluate homography	]=====
 			BIH, score = evaluate_homography (hi, vi, horz_points_grid, vert_points_grid, corners)
 			BIH_score_list.append ((BIH, score))
 
-			print "		", score
+			# print "		", score
 
 			#=====[ shift vi ]=====
 			vi += 1
