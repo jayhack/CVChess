@@ -1,3 +1,4 @@
+from copy import deepcopy
 import numpy as np
 import cv2
 from parameters import display_parameters
@@ -99,10 +100,10 @@ class Square:
 		y_min, y_max = min(iv[:, 1]), max(iv[:, 1])
 
 		#=====[ Step 2: extract image region 	]=====
-		self.image_region = image[y_min:(y_max+1), x_min:(x_max + 1)]
+		self.image_region = deepcopy(image[y_min:(y_max+1), x_min:(x_max + 1)])
 
 		#=====[ Step 3: create mask	]=====
-		self.image_region_mask = np.zeros (self.image_region.shape[:2])
+		self.image_region_mask = np.zeros (self.image_region.shape[:2], dtype=np.uint8)
 		mask_coords = [(i[0] - x_min, i[1] - y_min) for i in self.image_vertices]
 		cv2.fillConvexPoly (self.image_region_mask, np.array(mask_coords).astype(int), 1)
 

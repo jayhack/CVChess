@@ -14,7 +14,7 @@ if __name__ == '__main__':
 	#=====[ Step 1: read in image, classifier ]=====
 	# first_frame = cv2.imread ('../data/game1/00.jpg')
 	first_frame = cv2.imread ('../data/game2/00.jpg')	
-	# first_frame = cv2.imread ('../data/empty1/4.jpg')
+	# first_frame = cv2.imread ('../data/empty1/3.jpg')
 	im_size = first_frame.shape[0]
 	first_frame = first_frame[int(im_size/2):, :]
 
@@ -22,7 +22,7 @@ if __name__ == '__main__':
 	corner_classifier = pickle.load (open('./corner_data/corner_classifier.obj', 'r'))	#more data
 	board = Board(corner_classifier=corner_classifier)
 	board.add_frame (first_frame)
-	board.draw_vertices (board.current_frame)
+	# board.draw_vertices (board.current_frame)
 
 
 

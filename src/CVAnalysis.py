@@ -304,9 +304,6 @@ def evaluate_homography (horz_indices, vert_indices, horz_points_grid, vert_poin
 	return BIH, score
 
 
-
-
-
 def find_BIH (horz_points_grid, horz_indices, vert_points_grid, vert_indices, corners):
 	"""
 		Function: find_BIH
@@ -342,9 +339,6 @@ def find_BIH (horz_points_grid, horz_indices, vert_points_grid, vert_indices, co
 
 	BIH_score_list.sort (key=lambda x: x[1], reverse=True)
 	return BIH_score_list
-
-
-
 
 
 def get_chessboard_lines (corners, image):

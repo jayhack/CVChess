@@ -7,14 +7,24 @@ function indexed_lines = horizontal_ransac (lines)
 %	- p: regresses from line index to where it should be.
 % 	(returns them from bottom to top)
 
+	%=====[ Step 1: figure out how many lines we can get	]=====
+	num_lines = size(lines, 2);
+	if num_lines > 5
+		num_lines = 5;
+	else
+		num_lines = 4;
+	end
+	num_lines = 5;		% NOTE: change this!!! only works for game 1...
+
+
 	%=====[ Step 1: preprocess lines ]=====
 	sorted_lines = sort(lines, 2);
-	sorted_lines = sorted_lines (:, 1:5);
+	sorted_lines = sorted_lines (:, 1:num_lines);
 	y = log(abs(sorted_lines(1, :)));
-	y = y(1:5);
+	y = y(1:num_lines);
 
 	%=====[ Step 2: initialize parameters for RANSAC ]=====
-	indices = combnk(1:9, 5);
+	indices = combnk(1:9, num_lines);
 	num_iters = size(indices, 1);
 	best_Rsq = -1;
 	best_p = 0;
