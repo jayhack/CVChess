@@ -33,7 +33,7 @@ def image_to_board_coords (BIH, image_coords):
 
 
 # an_letters, an_numbers = 'ABCDEFGH', range(1, 9)
-an_letters, an_numbers = 'HGFEDCBA', range(8, 0, -1)
+an_letters, an_numbers = 'HGFEDCBA', range(8, 0, -1) #mirror image
 def algebraic_notation_to_board_coords (an):
 	"""
 		Function: algebraic_notation_to_board_coords
@@ -43,6 +43,38 @@ def algebraic_notation_to_board_coords (an):
 	"""	
 	tl = an_letters.index (an[0]), an_numbers.index (an[1])
 	return [tl, (tl[0] + 1, tl[1]), (tl[0] + 1, tl[1] + 1), (tl[0], tl[1] + 1)]
+
+
+def an_to_index (an):
+	"""
+		Function: an_to_index
+		---------------------
+		conversion between a square's algebraic notation and the (i,j) indices
+		that describe where it lies on the board
+	"""	
+	return an_letters.index(an[0]), an_numbers.index(an[1])
+
+
+def index_to_an (index):
+	"""
+		Function: index_to_an
+		---------------------
+		conversion between (i, j) indices into board.squares and 
+		the square's algebraic notation
+	"""	
+	return an_letters[index[0]], an_numbers[index[1]]
+
+
+def split_move_notation (move):
+	"""
+		Function: split_move_notation
+		-----------------------------
+		given a string represneting the fen of a move,
+		this will return (exit_an, enter_an), where exit is the 
+		square that was exited and enter was the square that was 
+		entered 
+	"""
+	return (move[0].upper (), int(move[1])), (move[2].upper (), int(move[3]))
 
 
 

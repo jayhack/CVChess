@@ -25,6 +25,13 @@ if __name__ == '__main__':
 	board = Board(corner_classifier=corner_classifier)
 	board.add_frame (frames[0])
 
+	#####[ DEBUG: check BIH via vertices	]#####
+	# board.draw_vertices (deepcopy(board.current_frame))
+	# key = 0
+	# while key != 27:
+	# 	key = cv2.waitKey (30)
+
+
 	#=====[ ITERATE THROUGH ALL FRAMES	]=====
 	for index, frame in enumerate(frames[1:]):
 		print_header ("ADDING FRAME: " + str(index))
@@ -34,8 +41,13 @@ if __name__ == '__main__':
 
 		#=====[ Step 4: get occlusion change	]=====
 		board.get_occlusion_changes ()
+		if index >= 1:
+			board.update_game ()
+			board.display_occlusion_changes ()
 
-		key = 0
-		while key != 27:
-			key = cv2.waitKey (30)
+
+
+			key = 0
+			while key != 27:
+				key = cv2.waitKey (30)
 

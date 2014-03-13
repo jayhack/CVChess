@@ -4,9 +4,10 @@ from copy import deepcopy
 import cv2
 import numpy as np
 import Chessnut
+import matplotlib.pyplot as plt
 import CVAnalysis
 from Square import Square
-from util import iter_algebraic_notations, algebraic_notation_to_board_coords
+from util import *
 
 class Board:
 	"""
@@ -80,45 +81,156 @@ class Board:
 			square.add_frame (new_frame)
 
 
+	def display_occlusion_changes (self):
+		"""
+			PUBLIC: display_occlusion_changes
+			---------------------------------
+			shows add_mat and sub_mat as heatmaps via 
+			matplotlib
+		"""
+				#=====[ BOARD TOP 3	]=====
+		self.added_t3 = sorted([(key, value) for key, value in self.squares_entered.items ()], key=lambda x: x[1], reverse=True)[:3]
+		print "ADDED: ", self.added_t3
+		self.subtracted_t3 = sorted([(key, value) for key, value in self.squares_exited.items ()], key=lambda x: x[1], reverse=True)[:3]
+		print "SUBTRACTED: ", self.subtracted_t3
+		added_img = deepcopy(self.current_frame)
+		
+		for an, value in self.added_t3:
+			added_img = self.draw_square_an (an, added_img)
+		cv2.imshow ("ADDED", added_img)
+
+		sub_img = deepcopy(self.current_frame)
+		for an, value in self.subtracted_t3:
+			sub_img = self.draw_square_an (an, sub_img)
+		cv2.imshow ("SUBTRACTED", sub_img)
+
+		#=====[ OCCLUSIONS HEATMAP	]=====
+		column_labels = list('ABCDEFGH')
+		row_labels = list('12345678')
+		fig, ax1 = plt.subplots()
+		heatmap = ax1.pcolor(self.enter_occlusions, cmap=plt.cm.Blues)
+		ax1.xaxis.tick_top()
+
+		column_labels = list('ABCDEFGH')
+		row_labels = list('12345678')
+		fig2, ax2 = plt.subplots()
+		heatmap = ax2.pcolor(self.exit_occlusions, cmap=plt.cm.Reds)
+		ax2.xaxis.tick_top()
+		plt.show ()
+
+
 	def get_occlusion_changes (self):
 		"""
 			PRIVATE: get_occlusion_changes
 			------------------------------
 			for each square, gets the probability that it is now occluded
 		"""
-		#=====[ Step 1: update each square's occlusion	]=====
-		for square in self.iter_squares ():
-			square.get_occlusion_change ()
+		#=====[ Step 1: get add_mat, sub_mat ]=====
+		self.enter_occlusions = np.zeros ((8, 8))
+		self.exit_occlusions = np.zeros ((8, 8))
+		for i, j, square in self.iter_squares_index ():
+			
+			(oc, ocd) = square.get_occlusion_change ()
+			if ocd == 'entered':
+				self.enter_occlusions[i, j] = oc
+			elif ocd == 'exited':
+				self.exit_occlusions[i, j] = oc
 
 		#=====[ Step 2: get a matrix of all squares and their occlusions 	]=====
-		squares_added = {square.an:square.occlusion_change for square in self.iter_squares() if square.occlusion_change_direction == 'added'}
-		squares_subtracted = {square.an:square.occlusion_change for square in self.iter_squares() if square.occlusion_change_direction == 'subtracted'}		
-
-		#=====[ Step 3: get top 3 from each	]=====
-		added_t3 = sorted([(key, value) for key, value in squares_added.items ()], key=lambda x: x[1], reverse=True)[:3]
-		print "ADDED: ", added_t3
-		subtracted_t3 = sorted([(key, value) for key, value in squares_subtracted.items ()], key=lambda x: x[1], reverse=True)[:3]
-		print "SUBTRACTED: ", subtracted_t3
-
-		added_img = deepcopy(self.current_frame)
-		for an, value in added_t3:
-			added_img = self.draw_square_an (an, added_img)
-		cv2.imshow ("ADDED", added_img)
-
-		sub_img = deepcopy(self.current_frame)
-		for an, value in subtracted_t3:
-			sub_img = self.draw_square_an (an, sub_img)
-		cv2.imshow ("SUBTRACTED", sub_img)
+		self.squares_entered = {square.an:square.occlusion_change for square in self.iter_squares() if square.occlusion_change_direction == 'added'}
+		self.squares_exited = {square.an:square.occlusion_change for square in self.iter_squares() if square.occlusion_change_direction == 'subtracted'}		
 
 
-	def get_occupation_probabilities (self, image):
+	def get_enter_moves (self, square_an):
 		"""
-			PRIVATE: get_occupation_probabilities
-			-------------------------------------
-			given an image, calculates and returns the probability of occupation 
-			for each square
+			PRIVATE: get_enter_moves
+			------------------------
+			given a square, gets all valid moves where the piece 
+			moves into this square 
 		"""
-		raise NotImplementedError
+		suffix = square_an[0].lower() + str(square_an[1])
+		return [move for move in self.game.get_moves () if move[-2:] == suffix]
+
+
+	def get_exit_moves (self, square_an):
+		"""
+			PRIVATE: get_exit_moves
+			-----------------------
+			given a square, gets all valid moves where the piece 
+			moves out of this square
+		"""
+		prefix = square_an[0].lower() + str(square_an[1])
+		return [move for move in self.game.get_moves () if move[:2] == prefix]
+
+
+	def get_move_score (self, move):
+		"""
+			PRIVATE: get_move_score
+			-----------------------
+			given a move in Chessnut move notation, returns its total score.
+		"""		
+
+
+		#=====[ Step 1: get move indices	]=====
+		exit_an, enter_an = split_move_notation (move)
+		enter_ix, exit_ix = an_to_index (enter_an), an_to_index (exit_an)
+		# print "=====[ 	GET MOVE SCORE ]====="
+		# print "move: ", move
+		# print "enter, exit_an", enter_an, exit_an
+		# print "enter, exit_ix", enter_ix, exit_ix
+		# print "enter occlusion: ",  self.enter_occlusions[enter_ix[0], enter_ix[1]]
+		# print "exit occlusion: ",  self.exit_occlusions[exit_ix[0], exit_ix[1]]
+
+		#=====[ Step 2: sum and return	]=====
+		return self.enter_occlusions[enter_ix[0], enter_ix[1]] + self.exit_occlusions[exit_ix[0], exit_ix[1]]
+
+
+	def infer_move (self):
+		"""
+			PRIVATE: infer_move
+			-------------------
+			operates on self.enter_occlusions and self.exit_occlusions
+			in order to find the most likely move 
+		"""
+		#=====[ Step 1: get enter, exit coordinates	]=====
+		enter_index = np.unravel_index(np.argmax(self.enter_occlusions), self.enter_occlusions.shape)
+		exit_index = np.unravel_index(np.argmax(self.exit_occlusions), self.exit_occlusions.shape)		
+
+		#=====[ Step 2: convert to algebraic notation	]=====
+		enter_an = index_to_an (enter_index)
+		exit_an = index_to_an (exit_index)
+		# print "Enter index, algebraic: ", enter_index, enter_an
+		# print "Exit index, algebraic: ", exit_index, exit_an		
+
+		#=====[ Step 3: get enter, exit moves	]=====
+		enter_moves = self.get_enter_moves (enter_an)
+		exit_moves = self.get_exit_moves (exit_an)
+		all_moves = enter_moves + exit_moves
+		# print '=====[ ENTER MOVES ]====='
+		# print enter_moves
+		# print '=====[ EXIT MOVES ]====='
+		# print exit_moves
+
+		#=====[ Step 4: score each	]=====
+		print "ALL MOVES: ", all_moves
+		scores = np.array([self.get_move_score (move) for move in all_moves])
+		print "ALL SCORES: ", list(scores)
+		best_index = np.argmax(scores)
+		best_move = all_moves[best_index]
+		print "BEST MOVE: ", best_move
+		return best_move
+
+
+	def update_game (self):
+		"""
+			PRIVATE: update_game
+			--------------------
+			determines the move, then updates self.game
+		"""
+		move = self.infer_move ()
+		self.game.apply_move (move)
+
+
 
 
 	def is_valid_move (self, move):
@@ -343,6 +455,31 @@ class Board:
 		for i in range(8):
 			for j in range(8):
 				yield self.squares [i][j]
+
+
+	def iter_squares_an (self):
+		"""
+			PRIVATE: iter_squares_an
+			------------------------
+			iterates over all Squares in self.squares
+			returns (alegebraic_notation, square)
+		"""
+		for i in range (8):
+			for j in range (8):
+				yield (self.squares[i][j].an, self.squares[i][j])
+
+
+	def iter_squares_index (self):
+		"""
+			PRIVATE: iter_squares_index
+			------------------------
+			iterates over all Squares in self.squares
+			returns (i, j, square), where i, j are indices into 
+			self.squares
+		"""
+		for i in range (8):
+			for j in range (8):
+				yield (i, j , self.squares[i][j])
 
 
 

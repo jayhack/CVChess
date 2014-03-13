@@ -211,9 +211,9 @@ class Square:
 
 		#=====[ Step 2: return whichever is greater	]=====
 		if current_diff > last_diff:
-			return 'added'
+			return 'entered'
 		else:
-			return 'subtracted'
+			return 'exited'
 
 
 	def get_occlusion_change_features (self):
@@ -239,6 +239,8 @@ class Square:
 
 		#=====[ Step 2: get occlusion change *direction*	]=====
 		self.occlusion_change_direction = self.piece_added_or_subtracted ()
+
+		return self.occlusion_change, self.occlusion_change_direction
 
 
 
