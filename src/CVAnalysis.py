@@ -352,7 +352,7 @@ def get_chessboard_lines (corners, image):
 	#=====[ Step 1: make an image for Matlab scripts ]=====
 	corners_img = np.zeros (image.shape[:2], dtype=np.uint8)
 	for corner in corners:
-		corners_img[int(corner[1])][int(corner[0])] = 255
+		corners_img[int(corner[1])][int(corner[0])] = 255									
 
 	#=====[ Step 2: save to IPC	]=====
 	cv2.imwrite ('./IPC/corners.png', corners_img)

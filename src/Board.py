@@ -88,34 +88,39 @@ class Board:
 			shows add_mat and sub_mat as heatmaps via 
 			matplotlib
 		"""
-				#=====[ BOARD TOP 3	]=====
-		self.added_t3 = sorted([(key, value) for key, value in self.squares_entered.items ()], key=lambda x: x[1], reverse=True)[:3]
-		print "ADDED: ", self.added_t3
-		self.subtracted_t3 = sorted([(key, value) for key, value in self.squares_exited.items ()], key=lambda x: x[1], reverse=True)[:3]
-		print "SUBTRACTED: ", self.subtracted_t3
-		added_img = deepcopy(self.current_frame)
-		
-		for an, value in self.added_t3:
-			added_img = self.draw_square_an (an, added_img)
-		cv2.imshow ("ADDED", added_img)
+		#=====[ BOARD TOP 3	]=====
+		self.entered_t2 = sorted([(key, value) for key, value in self.squares_entered.items ()], key=lambda x: x[1], reverse=True)[:2]
+		self.exited_t2 = sorted([(key, value) for key, value in self.squares_exited.items ()], key=lambda x: x[1], reverse=True)[:2]
 
-		sub_img = deepcopy(self.current_frame)
-		for an, value in self.subtracted_t3:
-			sub_img = self.draw_square_an (an, sub_img)
-		cv2.imshow ("SUBTRACTED", sub_img)
+		disp_img = deepcopy(self.current_frame)		
+		for an, value in self.entered_t2:
+			disp_img = self.draw_square_an (an, disp_img, color=(255, 0, 0))
+		for an, value in self.exited_t2:
+			disp_img = self.draw_square_an (an, disp_img, color=(0, 0, 255))
+		cv2.imshow ('Board', disp_img)
+
 
 		#=====[ OCCLUSIONS HEATMAP	]=====
-		column_labels = list('ABCDEFGH')
-		row_labels = list('12345678')
+		column_labels = list('HGFEDCBA')
+		row_labels = list('87654321')
 		fig, ax1 = plt.subplots()
 		heatmap = ax1.pcolor(self.enter_occlusions, cmap=plt.cm.Blues)
 		ax1.xaxis.tick_top()
+		ax1.set_xticks(np.arange(self.enter_occlusions.shape[0])+0.5, minor=False)
+		ax1.set_yticks(np.arange(self.enter_occlusions.shape[1])+0.5, minor=False)
+		ax1.xaxis.tick_top()
+		ax1.set_xticklabels(row_labels, minor=False)
+		ax1.set_yticklabels(column_labels, minor=False)
+		# plt.title ('Positive Increases in Occlusion by Square')
 
-		column_labels = list('ABCDEFGH')
-		row_labels = list('12345678')
+
 		fig2, ax2 = plt.subplots()
 		heatmap = ax2.pcolor(self.exit_occlusions, cmap=plt.cm.Reds)
 		ax2.xaxis.tick_top()
+		ax2.set_xticks(np.arange(self.enter_occlusions.shape[0])+0.5, minor=False)
+		ax2.set_yticks(np.arange(self.enter_occlusions.shape[1])+0.5, minor=False)
+		ax2.set_xticklabels(row_labels, minor=False)
+		ax2.set_yticklabels(column_labels, minor=False)
 		plt.show ()
 
 
@@ -137,8 +142,8 @@ class Board:
 				self.exit_occlusions[i, j] = oc
 
 		#=====[ Step 2: get a matrix of all squares and their occlusions 	]=====
-		self.squares_entered = {square.an:square.occlusion_change for square in self.iter_squares() if square.occlusion_change_direction == 'added'}
-		self.squares_exited = {square.an:square.occlusion_change for square in self.iter_squares() if square.occlusion_change_direction == 'subtracted'}		
+		self.squares_entered = {square.an:square.occlusion_change for square in self.iter_squares() if square.occlusion_change_direction == 'entered'}
+		self.squares_exited = {square.an:square.occlusion_change for square in self.iter_squares() if square.occlusion_change_direction == 'exited'}		
 
 
 	def get_enter_moves (self, square_an):
@@ -227,8 +232,8 @@ class Board:
 			--------------------
 			determines the move, then updates self.game
 		"""
-		move = self.infer_move ()
-		self.game.apply_move (move)
+		self.last_move = self.infer_move ()
+		self.game.apply_move (self.last_move)
 
 
 
@@ -544,7 +549,7 @@ class Board:
 		cv2.imshow ('board.draw_vertices', image)
 
 
-	def draw_square_an (self, an, image):
+	def draw_square_an (self, an, image, color=(255, 0, 0)):
 		"""
 			PUBLIC: draw_square_an
 			----------------------
@@ -553,7 +558,7 @@ class Board:
 		"""
 		board_coords = algebraic_notation_to_board_coords (an)[0]
 		square = self.squares[board_coords[0]][board_coords[1]]
-		image = square.draw_surface (image)
+		image = square.draw_surface (image, color)
 		return image 
 
 
@@ -595,6 +600,17 @@ class Board:
 		key = 0
 		while key != 27:
 			key = cv2.waitKey (30)
+
+
+	def draw_last_move (self, frame):
+		"""
+			PUBLIC: draw_last_move
+			----------------------
+			draws self.last_move onto the board
+		"""
+		exit_an, enter_an = split_move_notation (self.last_move)
+		frame = self.draw_square_an (enter_an)
+		return frame
 
 
 	def show_square_edges (self):

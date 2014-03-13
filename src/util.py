@@ -226,7 +226,7 @@ def draw_points_xy (image, points, color=(0, 0, 255), radius=5):
 		around them on the provided image in the provided color
 	"""
 	for p in points:
-		cv2.circle (image, (int(p[0]), int(p[1])), radius, color)
+		cv2.circle (image, (int(p[0]), int(p[1])), radius, color, thickness=2)
 	return image
 
 

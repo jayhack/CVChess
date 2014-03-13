@@ -82,10 +82,10 @@ class Square:
 		tl = algebraic_notation_to_board_coords (algebraic_notation)[0]
 		if (tl[0] + tl[1]) % 2 == 1:
 			self.color = 1
-			self.draw_color = (255, 0, 0)
+			self.draw_color = (255, 50, 50)
 		else:
 			self.color = 0
-			self.draw_color = (0, 0, 255)
+			self.draw_color = (0, 0, 200)
 
 
 	def get_vertices (self, BIH):
@@ -249,16 +249,18 @@ class Square:
 	##############################[ --- DRAWING --- ]###################################################
 	####################################################################################################
 
-	def draw_surface (self, image):
+	def draw_surface (self, image, color=None):
 		"""
 			PUBLIC: draw_surface
 			--------------------
 			draws the surface of this square on the image
 		"""
+		if color == None:
+			color = self.draw_color
 		# cv2.fillConvexPoly(image, np.array(self.image_vertices).astype(int), self.draw_color) #filled
 		iv = np.array(self.image_vertices).astype(int)
 		for i in range(len(self.image_vertices)):
-			cv2.line (image, tuple(iv[i % len(self.image_vertices)]), tuple(iv[(i+1) % len(self.image_vertices)]), self.draw_color, thickness=3)
+			cv2.line (image, tuple(iv[i % len(self.image_vertices)]), tuple(iv[(i+1) % len(self.image_vertices)]), color, thickness=3)
 		return image
 
 
@@ -269,7 +271,7 @@ class Square:
 			draws the verties of this square on the image
 		"""
 		for vertex in self.image_vertices:
-			cv2.circle (image, (int(vertex[0]), int(vertex[1])), 5, (0, 0, 255))
+			cv2.circle (image, (int(vertex[0]), int(vertex[1])), 8, (255, 0, 0), thickness=2)
 
 
 	def show_image_region_normalized (self):

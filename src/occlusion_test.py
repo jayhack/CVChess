@@ -34,6 +34,7 @@ if __name__ == '__main__':
 
 	#=====[ ITERATE THROUGH ALL FRAMES	]=====
 	for index, frame in enumerate(frames[1:]):
+		cv2.imwrite ('posterpics/move2_raw.png', frame)
 		print_header ("ADDING FRAME: " + str(index))
 
 		#=====[ Step 3: add frame ]=====
@@ -44,6 +45,9 @@ if __name__ == '__main__':
 		if index >= 1:
 			board.update_game ()
 			board.display_occlusion_changes ()
+			frame = board.draw_square_an (('F', 6), board.current_frame, color=(0, 255, 0))
+			cv2.imshow ('test', frame)
+			cv2.imwrite ('move2_detected.png', frame)
 
 
 

@@ -14,6 +14,6 @@ if __name__ == "__main__":
 
 	#=====[ Step 2: run kmeans	]=====
 	show_image (k_img, 'knight')
-	show_image (p_img, 'pawn')
+	# show_image (p_img, 'pawn')
 	show_image (c1_img, 'combo1')
-	show_image (c2_img, 'combo2')			
+	# show_image (c2_img, 'combo2')			
