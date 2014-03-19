@@ -168,26 +168,41 @@ class Board:
 		return [move for move in self.game.get_moves () if move[:2] == prefix]
 
 
+	def add_scores (self, occ_map, ix):
+		"""
+			PRIVATE: add_scores
+			-------------------
+			given a map of occlusions (either enter or exit) and the index 
+			being moved to, this will return a score for it 
+		"""
+		#=====[ NAIVE: just score of square at ix	]=====
+		# return occ_map[ix[0], ix[1]]
+
+		#=====[ NAIVE 2: score of square at ix, as well as 2 above, normalized	]=====
+		v_ix = range(ix[0], 9)[:3]
+		return np.sum([occ_map[v_ix[i]][ix[1]] for i in range(len(v_ix))])
+
+
 	def get_move_score (self, move):
 		"""
 			PRIVATE: get_move_score
 			-----------------------
 			given a move in Chessnut move notation, returns its total score.
 		"""		
-
-
 		#=====[ Step 1: get move indices	]=====
 		exit_an, enter_an = split_move_notation (move)
 		enter_ix, exit_ix = an_to_index (enter_an), an_to_index (exit_an)
-		# print "=====[ 	GET MOVE SCORE ]====="
-		# print "move: ", move
-		# print "enter, exit_an", enter_an, exit_an
-		# print "enter, exit_ix", enter_ix, exit_ix
-		# print "enter occlusion: ",  self.enter_occlusions[enter_ix[0], enter_ix[1]]
-		# print "exit occlusion: ",  self.exit_occlusions[exit_ix[0], exit_ix[1]]
+		print "=====[ 	GET MOVE SCORE ]====="
+		print "move: ", move
+		print "exit_an, enter_an", exit_an, enter_an
+		print "exit_ix, enter_ix", exit_ix, enter_ix
+		print "exit occlusion: ",  self.exit_occlusions[exit_ix[0], exit_ix[1]]
+		print "enter occlusion: ",  self.enter_occlusions[enter_ix[0], enter_ix[1]]
+
 
 		#=====[ Step 2: sum and return	]=====
-		return self.enter_occlusions[enter_ix[0], enter_ix[1]] + self.exit_occlusions[exit_ix[0], exit_ix[1]]
+		return self.add_scores(self.enter_occlusions, enter_ix) + self.add_scores(self.exit_occlusions, exit_ix)
+		# return self.enter_occlusions[enter_ix[0], enter_ix[1]] + self.exit_occlusions[exit_ix[0], exit_ix[1]]
 
 
 	def infer_move (self):
@@ -210,7 +225,7 @@ class Board:
 		#=====[ Step 3: get enter, exit moves	]=====
 		enter_moves = self.get_enter_moves (enter_an)
 		exit_moves = self.get_exit_moves (exit_an)
-		all_moves = enter_moves + exit_moves
+		all_moves = list(set(enter_moves + exit_moves))
 		# print '=====[ ENTER MOVES ]====='
 		# print enter_moves
 		# print '=====[ EXIT MOVES ]====='
@@ -525,13 +540,9 @@ class Board:
 			call this function to display a version of the image with square 
 			outlines marked out
 		"""	
-		#=====[ Step 1: fill in all of the squares	]=====
 		for square in self.iter_squares():
-			image = square.draw_surface (image)
-
-		#=====[ Step 2: draw them to the screen	]=====
-		cv2.namedWindow ('board.draw_squares')
-		cv2.imshow ('board.draw_squares', image)
+			image = square.draw_surface (image)	
+		return image
 
 
 	def draw_vertices (self, image):
@@ -540,13 +551,9 @@ class Board:
 			---------------------
 			draws all square vertices on the image
 		"""
-		#=====[ Step 1: draw all vertices	]=====
 		for square in self.iter_squares ():
 			square.draw_vertices (image)
-
-		#=====[ Step 2: draw them to the screen	]=====
-		cv2.namedWindow ('board.draw_vertices')
-		cv2.imshow ('board.draw_vertices', image)
+		return image
 
 
 	def draw_square_an (self, an, image, color=(255, 0, 0)):

@@ -34,11 +34,12 @@ if __name__ == '__main__':
 	frame_ic = get_next_frame (vc)
 	board.add_frame (frame_ic)	
 	#####[ DEBUG: verify BIH is correct	]#####
-	# frame_ic = board.draw_vertices(frame_ic)
-	# cv2.imshow ('test', frame_ic)
-	# key = 0
-	# while not key in [27, ord('Q'), ord('q')]: 
-	# 	key = cv2.waitKey (30)
+	frame_ic = board.draw_vertices(frame_ic)
+	cv2.imshow ('BIH MARKED', frame_ic)
+	key = 0
+	while not key in [27, ord('Q'), ord('q')]: 
+		key = cv2.waitKey (30)
+
 
 	add_frames = [420, 470, 516, 550, 589, 648, 709, 819, 878]
 	num_frames = 1

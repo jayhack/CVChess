@@ -63,14 +63,26 @@ def get_harris_corners (image):
 
 def get_sift_descriptors (image, kpts):
 	"""
-		Function: get_sift_descriptor
-		-----------------------------
+		Function: get_sift_descriptors
+		------------------------------
 		given an image and a list of keypoints, this returns
 		(keypoints, descriptors), each a list
 	"""
 	sift_descriptor = cv2.DescriptorExtractor_create('SIFT')
 	return sift_descriptor.compute (image, kpts)[1]
 
+
+def get_hc_sd (image):
+	"""
+		Function: get_hc_sd
+		-------------------
+		given an image, this returns hc, sd where 
+		hc = list of (x, y) corresponding to harris corners 
+		sd = sift descriptors for each harris corner
+	"""
+	hc = get_harris_corners (image)
+	sd = get_sift_descriptors (image, hc)
+	return [c.pt for c in hc], sd
 
 
 
@@ -184,29 +196,58 @@ def cluster_points (points, cluster_dist=7):
 	return new_points
 
 
-def get_chessboard_corner_candidates (image, corner_classifier):
+def get_chessboard_corners (image, corner_classifier):
 	"""
-		Function: get_chessboard_corner_candidates
-		------------------------------------------
+		Function: get_chessboard_corners
+		--------------------------------
 		given an image, returns a list of points (represented as tuples)
 		that correspond to possible chessboard corners. Note: they have 
 		been clustered on output to account for harris corners surrounding 
 		actual chessboard corners
 	"""
 	#=====[ Step 1: get corners/sift descriptors	]=====
-	hc = get_harris_corners(image)
-	sd = get_sift_descriptors (image, hc)
+	hc, sd = get_hc_sd (image)
 
 	#=====[ Step 2: make predictions	]=====
 	predictions = corner_classifier.predict (sd)
 	idx = (predictions == 1)
-	chessboard_corners = [c.pt for c, i in zip(hc, idx) if i]
+	chessboard_corners = [c for c, i in zip(hc, idx) if i]
 
 	#=====[ Step 3: cluster corners	]=====
 	chessboard_corners = cluster_points (chessboard_corners)
-
-
 	return chessboard_corners
+
+
+def get_chessboard_lines (image, corners):
+	"""
+		Function: get_chessboard_lines
+		------------------------------
+		given the image and the set of corners, returns lists 
+		(horz_lines, horz_indices, vert_lines, vert_indices), represented as (a, b, c) pairs,
+		and indices up to a shift
+	"""
+	#=====[ Step 1: make an image for Matlab scripts ]=====
+	corners_img = np.zeros (image.shape[:2], dtype=np.uint8)
+	for corner in corners:
+		corners_img[int(corner[1])][int(corner[0])] = 255									
+
+	#=====[ Step 2: save to IPC	]=====
+	cv2.imwrite ('./IPC/corners.png', corners_img)
+
+	#=====[ Step 3: run matlab script	]=====
+	os.chdir ('./autofind_lines')
+	call(["/Applications/MATLAB_R2013b.app/bin/matlab", "-nojvm", "-nodisplay", "-nosplash", "-r ", "autofind_lines"])
+	os.chdir ('../')
+
+	#=====[ Step 4: get the lines back	]=====
+	horz_lines_indexed = np.genfromtxt ('./IPC/horizontal_lines.csv', delimiter=',')
+	vert_lines_indexed = np.genfromtxt ('./IPC/vertical_lines.csv', delimiter=',')
+	horz_lines = zip(list(horz_lines_indexed[0, :]), list(horz_lines_indexed[1, :]))
+	vert_lines = zip(list(vert_lines_indexed[0, :]), list(vert_lines_indexed[1, :]))
+	horz_indices = horz_lines_indexed[2, :]
+	vert_indices = vert_lines_indexed[2, :]
+
+	return horz_lines, horz_indices, vert_lines, vert_indices
 
 
 def snap_points_to_lines (lines, points, max_distance=5):
@@ -304,32 +345,36 @@ def evaluate_homography (horz_indices, vert_indices, horz_points_grid, vert_poin
 	return BIH, score
 
 
-def find_BIH (horz_points_grid, horz_indices, vert_points_grid, vert_indices, corners):
+def get_BIH_from_lines (corners, horz_lines, horz_ix, vert_lines, vert_ix):
 	"""
-		Function: find_BIH
-		------------------
-		given two point grids and the indices that row corresponds to on the board
-		(up to a shift), this will find the point correspondences and BIH
+		Function: get_BIH_from_lines
+		----------------------------
+		given corners, lines and their indices up to a shift, returns 
+		the best BIH 
 	"""
+	#=====[ Step 1: snap points to grid ]===
+	horz_points_grid = snap_points_to_lines (horz_lines, corners)
+	vert_points_grid = snap_points_to_lines (vert_lines, corners)
 
-	#=====[ Step 1: shift both indices all the way to bottom left ]=====
-	horz_indices = horz_indices - horz_indices[0] 
-	vert_indices = vert_indices - vert_indices[0]
-
-	#=====[ Step 2: initialize parameters	]=====
-	BIH_score_list = []
+	#=====[ Step 2: shift both indices all the way to bottom left ]=====
+	horz_ix = horz_ix - horz_ix[0] 
+	vert_ix = vert_ix - vert_ix[0]
 
 	#=====[ ITERATE THROUGH ALL SHIFTS	]=====
-	hi = deepcopy(horz_indices)
+	hi = deepcopy(horz_ix)
+	best_BIH = np.zeros ((3,3))
+	best_score = -1
 	while (hi[-1] < 9):
 		# print "hi: ", hi
-		vi = deepcopy (vert_indices)
+		vi = deepcopy (vert_ix)
 		while (vi[-1] < 9):
 			# print "	vi: ", vi
 
 			#=====[ evaluate homography	]=====
 			BIH, score = evaluate_homography (hi, vi, horz_points_grid, vert_points_grid, corners)
-			BIH_score_list.append ((BIH, score))
+			if score > best_score:
+				best_score = score
+				best_BIH = BIH
 
 			# print "		", score
 
@@ -337,46 +382,7 @@ def find_BIH (horz_points_grid, horz_indices, vert_points_grid, vert_indices, co
 			vi += 1
 		hi += 1
 
-	BIH_score_list.sort (key=lambda x: x[1], reverse=True)
-	return BIH_score_list
-
-
-def get_chessboard_lines (corners, image):
-	"""
-		Function: get_chessboard_lines
-		------------------------------
-		given a list of corners represented as tuples, this returns 
-		(horizontal_lines, vertical_lines) represented as (a, b, c)
-		pairs 
-	"""
-	#=====[ Step 1: make an image for Matlab scripts ]=====
-	corners_img = np.zeros (image.shape[:2], dtype=np.uint8)
-	for corner in corners:
-		corners_img[int(corner[1])][int(corner[0])] = 255									
-
-	#=====[ Step 2: save to IPC	]=====
-	cv2.imwrite ('./IPC/corners.png', corners_img)
-
-	#=====[ Step 3: run matlab script	]=====
-	os.chdir ('./autofind_lines')
-	call(["/Applications/MATLAB_R2013b.app/bin/matlab", "-nojvm", "-nodisplay", "-nosplash", "-r ", "autofind_lines"])
-	os.chdir ('../')
-
-	#=====[ Step 4: get the lines back	]=====
-	horz_lines_indexed = np.genfromtxt ('./IPC/horizontal_lines.csv', delimiter=',')
-	vert_lines_indexed = np.genfromtxt ('./IPC/vertical_lines.csv', delimiter=',')
-	horz_lines = zip(list(horz_lines_indexed[0, :]), list(horz_lines_indexed[1, :]))
-	vert_lines = zip(list(vert_lines_indexed[0, :]), list(vert_lines_indexed[1, :]))
-	horz_indices = horz_lines_indexed[2, :]
-	vert_indices = vert_lines_indexed[2, :]
-
-	#=====[ Step 3: snap points to grid ]===
-	horz_points_grid = snap_points_to_lines (horz_lines, corners)
-	vert_points_grid = snap_points_to_lines (vert_lines, corners)
-
-	#=====[ Step 4: find homography	]=====
-	BIH_score_list = find_BIH (horz_points_grid, horz_indices, vert_points_grid, vert_indices, corners)
-	return BIH_score_list
+	return best_BIH
 
 
 def find_board_image_homography (image, corner_classifier):
@@ -389,23 +395,35 @@ def find_board_image_homography (image, corner_classifier):
 		corner_classifier is an sklearn classifier that maps points 
 		to {0,1}, where 1 means it is a chessboard corner
 	"""
-	img_copy = deepcopy(image)
-
 	#=====[ Step 1: get chessboard corners	]=====
-	corners = get_chessboard_corner_candidates (image, corner_classifier)
+	corners = get_chessboard_corners (image, corner_classifier)
 	#####[ DEBUG: DRAW CORNERS	]#####
-	# img_copy = draw_points_xy (img_copy, corners)
-	# cv2.namedWindow ('corners')
-	# cv2.imshow ('corners', img_copy)
+	# corners_img = draw_points_xy (deepcopy(image), corners)
+	# cv2.namedWindow ('PREDICTED CORNERS')
+	# cv2.imshow ('corners', corners_img)
 	# key = 0
 	# while key != 27:
 	# 	key = cv2.waitKey (30)
 
+	
+	#=====[ Step 2: get lines (no indices yet) from corners	]=====
+	horz_lines, horz_ix, vert_lines, vert_ix = get_chessboard_lines (image, corners)
+	#####[ DEBUG: DRAW LINES	]#####
+	# corners_img = draw_points_xy (deepcopy(image), corners)
+	# cv2.namedWindow ('PREDICTED CORNERS')
+	# cv2.imshow ('corners', corners_img)
+	# key = 0
+	# while key != 27:
+	# 	key = cv2.waitKey (30)
+
+	#=====[ Step 3: get BIH from lines	]=====
+	BIH = get_BIH_from_lines (corners, horz_lines, horz_ix, vert_lines, vert_ix)
+	return BIH
 
 	#=====[ Step 2: generate a list of BIH candidates	]=====
-	BIH_score_list = get_chessboard_lines (corners, image)
-	BIH = BIH_score_list[0][0]
-	return BIH
+	# BIH_score_list = get_chessboard_lines_old (corners, image)
+	# BIH = BIH_score_list[0][0]
+	# return BIH
 
 
 
