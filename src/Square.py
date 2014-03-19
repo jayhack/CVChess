@@ -137,6 +137,8 @@ class Square:
 		self.last_image_region_normalized = self.image_region_normalized
 		totals = np.sum (self.image_region, 2, dtype=np.float)
 		self.image_region_normalized = self.image_region.astype(np.float)
+		np.seterr (divide='ignore') #NOTE: stops numpy from complaining about division by zero.
+									#		currently yields nan
 		self.image_region_normalized[:, :, 0] = np.divide (self.image_region_normalized[:, :, 0], totals) * 255
 		self.image_region_normalized[:, :, 1] = np.divide (self.image_region_normalized[:, :, 1], totals) * 255
 		self.image_region_normalized[:, :, 2] = np.divide (self.image_region_normalized[:, :, 2], totals) * 255

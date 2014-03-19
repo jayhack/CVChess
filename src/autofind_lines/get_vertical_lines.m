@@ -23,11 +23,5 @@ function indexed_lines = get_vertical_lines (corners_img)
 	%=====[ Step 4: figure out which lines they are	]=====
 	indexed_lines = vertical_ransac (lines, size(corners_img, 1));
 
-
-
 	%#####[ DEBUG: show lines	]#####
 	% draw_lines (corners_img, lines)
-
-	% =====[ Correct Indices on game2/00.jpg	]=====
-	% vertical: 2, 3, 4, 6, 7
-	% horizontal: 0, 1, 2, 4, 6

@@ -201,15 +201,15 @@ def get_chessboard_corner_candidates (image, corner_classifier):
 	predictions = corner_classifier.predict (sd)
 	idx = (predictions == 1)
 	chessboard_corners = [c.pt for c, i in zip(hc, idx) if i]
-	# chessboard_corners = [c.pt for c in hc] #no classifier - for demos
 
 	#=====[ Step 3: cluster corners	]=====
 	chessboard_corners = cluster_points (chessboard_corners)
 
+
 	return chessboard_corners
 
 
-def snap_points_to_lines (lines, points, max_distance=10):
+def snap_points_to_lines (lines, points, max_distance=5):
 	"""
 		Function: snap_points_to_lines
 		------------------------------
@@ -236,7 +236,7 @@ def snap_points_to_lines (lines, points, max_distance=10):
 	return grid
 
 
-def is_BIH_inlier (all_BIH_ip, corner, pix_dist=10):
+def is_BIH_inlier (all_BIH_ip, corner, pix_dist=7):
 	"""
 		Function: is_BIH_inlier
 		-----------------------
@@ -322,16 +322,16 @@ def find_BIH (horz_points_grid, horz_indices, vert_points_grid, vert_indices, co
 	#=====[ ITERATE THROUGH ALL SHIFTS	]=====
 	hi = deepcopy(horz_indices)
 	while (hi[-1] < 9):
-		# print "hi: ", hi
+		print "hi: ", hi
 		vi = deepcopy (vert_indices)
 		while (vi[-1] < 9):
-			# print "	vi: ", vi
+			print "	vi: ", vi
 
 			#=====[ evaluate homography	]=====
 			BIH, score = evaluate_homography (hi, vi, horz_points_grid, vert_points_grid, corners)
 			BIH_score_list.append ((BIH, score))
 
-			# print "		", score
+			print "		", score
 
 			#=====[ shift vi ]=====
 			vi += 1
@@ -353,6 +353,13 @@ def get_chessboard_lines (corners, image):
 	corners_img = np.zeros (image.shape[:2], dtype=np.uint8)
 	for corner in corners:
 		corners_img[int(corner[1])][int(corner[0])] = 255									
+	#####[ DEBUG: show chessboard corner candidates	]#####
+	# image = draw_points_xy (image, corners)
+	# cv2.imshow ('Chessboard Corner Candidates (Clustered)', image)
+	# key = 0
+	# while not key in [27, ord('Q'), ord('q')]:
+	# 	key = cv2.waitKey (30)
+
 
 	#=====[ Step 2: save to IPC	]=====
 	cv2.imwrite ('./IPC/corners.png', corners_img)

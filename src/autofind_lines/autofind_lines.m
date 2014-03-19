@@ -8,7 +8,6 @@ function [horizontal_lines, vertical_lines] = autofind_lines ()
 	%=====[ Step 1: get corners image from IPC	]=====
 	corners_img_name = '../IPC/corners.png';
 	corners_img = imread (corners_img_name);
-	% imshow (corners_img);
 
 	%=====[ Step 2: get horizontal/vertical lines, along with indices up to a shift	]=====
 	horizontal_lines = get_horizontal_lines (corners_img);
@@ -20,3 +19,7 @@ function [horizontal_lines, vertical_lines] = autofind_lines ()
 
 	%=====[ Step 4: quit out	]=====
 	quit;
+
+	%#####[ DEBUG: correct indices on videos/1.mov	]#####
+	% vertical: 4, 5, 6, 7, 8
+	% horizontal: 1, 2, 3, 6, 8
