@@ -53,7 +53,7 @@ if __name__ == '__main__':
 	s_hsv = [cv2.cvtColor(s.image_region, cv2.COLOR_BGR2HSV) for s in board.iter_squares()]
 
 	#=====[ Step 6: reshape all data	]=====
-	reshaped = [s.reshape ((s.shape[0]*s.shape[1], 3)) for s in deepcopy(s_reg)]
+	reshaped = [s.reshape ((s.shape[0]*s.shape[1], 3)) for s in s_reg]
 	data = np.concatenate (reshaped, 0)
 	print data.shape
 

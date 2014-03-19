@@ -276,12 +276,36 @@ class Board:
 	def find_BIH (self):
 		"""
 			PRIVATE: find_BIH
-			----------------
+			-----------------
 			finds the board-image homography from self.current_frame, which is assumed 
 			to be the first frame
 		"""
 		assert self.corner_classifier 
 		self.BIH = CVAnalysis.find_board_image_homography (self.current_frame, self.corner_classifier)
+
+
+	def find_colors (self):
+		"""
+			PRIVATE: find_colors
+			--------------------
+			runs kmeans to get self.color_km
+		"""
+		#=====[ Step 1: get all data for kmeans	]=====
+		s_reg = [s.image_region for s in board.iter_squares ()]
+		reshaped = [s.reshape ((s.shape[0]*s.shape[1], 3)) for s in s_reg]
+		all_pixels = np.concatenate (reshaped, 0)
+
+		#=====[ Step 2: run kmeans on it	]=====
+		self.color_km = KMeans (n_clusters=4)
+		km.fit (all_pixels)
+
+
+	def fill_square_colors (self):
+		"""
+			PRIVATE: fill_square_colors
+			---------------------------
+			fills square.
+		"""
 
 
 	def construct_squares (self):
