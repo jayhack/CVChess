@@ -33,15 +33,17 @@ if __name__ == '__main__':
 	#=====[ Step 3: get BIH from first frame ]=====
 	frame_ic = get_next_frame (vc)
 	board.add_frame (frame_ic)	
+	cv2.imwrite ('../data/videos/0.jpg', frame_ic)
 	#####[ DEBUG: verify BIH is correct	]#####
-	frame_ic = board.draw_vertices(frame_ic)
-	cv2.imshow ('BIH MARKED', frame_ic)
-	key = 0
-	while not key in [27, ord('Q'), ord('q')]: 
-		key = cv2.waitKey (30)
+	# frame_ic = board.draw_vertices(frame_ic)
+	# cv2.imshow ('BIH MARKED', frame_ic)
+	# key = 0
+	# while not key in [27, ord('Q'), ord('q')]: 
+	# 	key = cv2.waitKey (30)
 
 
 	add_frames = [420, 470, 516, 550, 589, 648, 709, 819, 878]
+	# add_frames = [420]
 	num_frames = 1
 	while True:
 		#=====[ Step 1: get/preprocess frame	]=====
@@ -56,6 +58,7 @@ if __name__ == '__main__':
 			print "===[ ADDING FRAME #" + str(num_frames) + " ]==="
 			board.add_frame (frame)
 			board.get_occlusion_changes ()
+			cv2.imwrite ('../data/videos/' + str(num_frames) +'.jpg', frame)
 			if num_frames >= 470:
 				board.update_game ()
 				board.display_occlusion_changes ()			

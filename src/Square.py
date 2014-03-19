@@ -138,7 +138,7 @@ class Square:
 		totals = np.sum (self.image_region, 2, dtype=np.float) + 1
 		self.image_region_normalized = self.image_region.astype(np.float)
 		np.seterr (divide='ignore') #NOTE: stops numpy from complaining about division by zero.
-									#		currently yields nan
+											# currently yields nan
 		self.image_region_normalized[:, :, 0] = np.divide (self.image_region_normalized[:, :, 0], totals) * 255
 		self.image_region_normalized[:, :, 1] = np.divide (self.image_region_normalized[:, :, 1], totals) * 255
 		self.image_region_normalized[:, :, 2] = np.divide (self.image_region_normalized[:, :, 2], totals) * 255
@@ -159,9 +159,13 @@ class Square:
 		self.b_hist = cv2.calcHist(self.image_region_normalized, [0], None, num_buckets, [1, 256])
 		self.g_hist = cv2.calcHist(self.image_region_normalized, [1], None, num_buckets, [1, 256])
 		self.r_hist = cv2.calcHist(self.image_region_normalized, [2], None, num_buckets, [1, 256])
+		# self.b_hist = cv2.calcHist(self.image_region, [0], None, num_buckets, [1, 256])
+		# self.g_hist = cv2.calcHist(self.image_region, [1], None, num_buckets, [1, 256])
+		# self.r_hist = cv2.calcHist(self.image_region, [2], None, num_buckets, [1, 256])
 
 		#=====[ Step 3: update contents_histogram, last_contents_histogram	]=====
 		self.contents_histogram = np.concatenate ([self.b_hist, self.g_hist, self.r_hist], 0).flatten ()
+		# self.contents_histogram = cv2.calcHist (self.image_region, [])
 
 
 	def update_edges (self):

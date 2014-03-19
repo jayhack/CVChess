@@ -409,21 +409,19 @@ def find_board_image_homography (image, corner_classifier):
 	#=====[ Step 2: get lines (no indices yet) from corners	]=====
 	horz_lines, horz_ix, vert_lines, vert_ix = get_chessboard_lines (image, corners)
 	#####[ DEBUG: DRAW LINES	]#####
-	# corners_img = draw_points_xy (deepcopy(image), corners)
+	# corners_img = deepcopy(image)
+	# corners_img = draw_lines_rho_theta (corners_img, horz_lines)
+	# corners_img = draw_lines_rho_theta (corners_img, vert_lines)
 	# cv2.namedWindow ('PREDICTED CORNERS')
 	# cv2.imshow ('corners', corners_img)
 	# key = 0
 	# while key != 27:
-	# 	key = cv2.waitKey (30)
+		# key = cv2.waitKey (30)
 
 	#=====[ Step 3: get BIH from lines	]=====
 	BIH = get_BIH_from_lines (corners, horz_lines, horz_ix, vert_lines, vert_ix)
 	return BIH
 
-	#=====[ Step 2: generate a list of BIH candidates	]=====
-	# BIH_score_list = get_chessboard_lines_old (corners, image)
-	# BIH = BIH_score_list[0][0]
-	# return BIH
 
 
 
