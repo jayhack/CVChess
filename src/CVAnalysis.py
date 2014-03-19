@@ -322,16 +322,16 @@ def find_BIH (horz_points_grid, horz_indices, vert_points_grid, vert_indices, co
 	#=====[ ITERATE THROUGH ALL SHIFTS	]=====
 	hi = deepcopy(horz_indices)
 	while (hi[-1] < 9):
-		print "hi: ", hi
+		# print "hi: ", hi
 		vi = deepcopy (vert_indices)
 		while (vi[-1] < 9):
-			print "	vi: ", vi
+			# print "	vi: ", vi
 
 			#=====[ evaluate homography	]=====
 			BIH, score = evaluate_homography (hi, vi, horz_points_grid, vert_points_grid, corners)
 			BIH_score_list.append ((BIH, score))
 
-			print "		", score
+			# print "		", score
 
 			#=====[ shift vi ]=====
 			vi += 1
@@ -353,13 +353,6 @@ def get_chessboard_lines (corners, image):
 	corners_img = np.zeros (image.shape[:2], dtype=np.uint8)
 	for corner in corners:
 		corners_img[int(corner[1])][int(corner[0])] = 255									
-	#####[ DEBUG: show chessboard corner candidates	]#####
-	# image = draw_points_xy (image, corners)
-	# cv2.imshow ('Chessboard Corner Candidates (Clustered)', image)
-	# key = 0
-	# while not key in [27, ord('Q'), ord('q')]:
-	# 	key = cv2.waitKey (30)
-
 
 	#=====[ Step 2: save to IPC	]=====
 	cv2.imwrite ('./IPC/corners.png', corners_img)
@@ -408,32 +401,11 @@ def find_board_image_homography (image, corner_classifier):
 	# while key != 27:
 	# 	key = cv2.waitKey (30)
 
+
 	#=====[ Step 2: generate a list of BIH candidates	]=====
 	BIH_score_list = get_chessboard_lines (corners, image)
 	BIH = BIH_score_list[0][0]
 	return BIH
-
-
-	#=====[ Step 3: evaluate candidates until one is satisfactory	]=====
-	# all_board_points = []
-	# for i in range(9):
-		# for j in range(9):
-			# all_board_points.append ((i, j))
-
-	# for BIH, score in BIH_score_list:
-
-	# 	#=====[ Step 1: get image points	]=====
-	# 	all_BIH_ip = [board_to_image_coords (BIH, bp) for bp in all_board_points]
-	# 	all_BIH_kp = [cv2.KeyPoint(x=ip[0], y=ip[1], size=5) for ip in all_BIH_ip]
-
-	# 	#=====[ Step 2: get SIFT descriptors for each one	]=====
-	# 	sifd_desc = get_sift_descriptors(image, all_BIH_kp)
-
-	# 	#=====[ Step 3: get probabilities for each	]=====
-	# 	predictions = corner_classifier.predict_proba (sift_desc)
-	# 	print shape(predictions)
-
-
 
 
 

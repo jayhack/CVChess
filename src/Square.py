@@ -135,7 +135,7 @@ class Square:
 
 		#=====[ Step 5: get intensity normalized image region	]=====
 		self.last_image_region_normalized = self.image_region_normalized
-		totals = np.sum (self.image_region, 2, dtype=np.float)
+		totals = np.sum (self.image_region, 2, dtype=np.float) + 1
 		self.image_region_normalized = self.image_region.astype(np.float)
 		np.seterr (divide='ignore') #NOTE: stops numpy from complaining about division by zero.
 									#		currently yields nan
