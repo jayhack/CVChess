@@ -28,12 +28,96 @@ class Board:
 			-------------------
 			initializes all variables 
 		"""
-		self.game 				= Chessnut.Game ()
 		self.last_frame 		= None
 		self.current_frame		= None
-		self.num_frames 		= 0
+		self.color_kmeans 		= None
 		self.corner_classifier	= corner_classifier
 
+
+
+
+
+
+
+
+
+	####################################################################################################
+	##############################[ --- MANAGING SQUARES --- ]##########################################
+	####################################################################################################
+
+	def iter_squares (self):
+		""" 
+			PRIVATE: iter_squares
+			---------------------
+			iterates over all squares in this board
+		"""
+		for i in range(8):
+			for j in range(8):
+				yield self.squares [i][j]
+
+
+	def iter_squares_an (self):
+		"""
+			PRIVATE: iter_squares_an
+			------------------------
+			iterates over all Squares in self.squares
+			returns (alegebraic_notation, square)
+		"""
+		for i in range (8):
+			for j in range (8):
+				yield (self.squares[i][j].an, self.squares[i][j])
+
+
+	def iter_squares_index (self):
+		"""
+			PRIVATE: iter_squares_index
+			------------------------
+			iterates over all Squares in self.squares
+			returns (i, j, square), where i, j are indices into 
+			self.squares
+		"""
+		for i in range (8):
+			for j in range (8):
+				yield (i, j , self.squares[i][j])
+
+
+	def construct_squares (self, empty_board_frame):
+		"""
+			PRIVATE: construct_squares
+			--------------------------
+			given a frame containing the empty board, this function 
+			fills self.squares with properly initialized squares
+		"""
+		#=====[ Step 1: initialize self.squares to empty 8x8 grid	]=====
+		self.squares = [[None for i in range(8)] for j in range(8)]
+
+		#=====[ Step 2: create a square for each algebraic notation ]=====
+		for square_an in iter_algebraic_notations ():
+				new_square = Square (empty_board_frame, self.BIH, square_an)
+				ix = new_square.board_vertices[0]
+				self.squares [ix[0]][ix[1]] = new_square
+
+
+	def update_square_image_regions (self, frame):
+		"""
+			PRIVATE: update_square_image_regions
+			------------------------------------
+			given a frame, updates square.image_region for each square 
+		"""
+		for square in self.iter_squares ():
+			square.update_image_region (frame)
+
+
+	def update_square_color_hists (self):
+		"""
+			PRIVATE: update_square_colors
+			-----------------------------
+			applies self.color_kmeans to each square to get 
+			its color histogram 
+		"""
+		assert self.color_kmeans
+		for square in self.iter_squares ():
+			square.update_color_hist (self.color_kmeans)
 
 
 
@@ -46,83 +130,126 @@ class Board:
 
 
 	####################################################################################################
-	##############################[ --- GAME MANAGEMENT --- ]###########################################
-	####################################################################################################	
+	##############################[ --- INITIALIZE BOARD PLANE --- ]####################################
+	####################################################################################################
 
-	def update_frames (self, new_frame):
+	def find_BIH (self, empty_board_frame):
 		"""
-			PRIVATE: update_frames 
-			----------------------
-			updates self.last_frame, self.current_frame
+			PRIVATE: find_BIH
+			-----------------
+			given a frame containing the empty board, this function 
+			finds the homography relating board coordinates to 
+			image coordinates. (sets self.BIH)
 		"""
-		#=====[ Step 1: rotate out frames	]=====
-		self.last_frame = self.current_frame
-		self.current_frame = new_frame
-		self.num_frames += 1
+		assert self.corner_classifier 
+		self.BIH = CVAnalysis.find_board_image_homography (empty_board_frame, self.corner_classifier)
 
 
-	def add_frame (self, new_frame):
+	def initialize_board_plane (self, empty_board_frame):
 		"""
-			PRIVATE: add_frame
-			------------------
-			adds a frame to the current game, from which 
-			it will try to discern what move occurred 
+			PUBLIC: initialize_board_plane
+			-------------------------------
+			given a frame of the empty board, this function
+			will:
+				- find the BIH 
+				- construct self.squares
+		"""
+		#=====[ Step 1: find the BIH	]=====
+		self.find_BIH (empty_board_frame)
+
+		#=====[ Step 2: construct squares	]=====
+		self.construct_squares (empty_board_frame)
+
+
+
+
+
+
+
+
+
+
+	####################################################################################################
+	##############################[ --- INITIALIZE GAME --- ]###########################################
+	####################################################################################################
+
+	def get_color_kmeans (self):
+		"""
+			PRIVATE: get_color_kmeans
+			-------------------------
+			runs kmeans on all square image regions to get self.color_kmeans
+		"""
+		#=====[ Step 1: get all data for kmeans	]=====
+		s_reg = [s.image_region for s in board.iter_squares ()]
+		reshaped = [s.reshape ((s.shape[0]*s.shape[1], 3)) for s in s_reg]
+		all_pixels = np.concatenate (reshaped, 0)
+
+		#=====[ Step 2: fit self.color_kmeans	]=====
+		self.color_kmeans = KMeans (n_clusters=4)
+		self.color_kmeans.fit (all_pixels)
+
+
+	def initialize_game (self, start_config_frame):
+		"""
+			PUBLIC: initialize_game
+			-----------------------
+			given a frame of the board with all pieces in their 
+			start locations, this will initialize the game 
+		"""
+		#=====[ Step 1: construct game ]=====
+		self.game = Chessnut.Game ()
+		self.num_moves = 0
+
+		#=====[ Step 2: get image regions for all squares	]=====
+		for square in self.iter_squares ():
+			square.update_image_region (start_config_frame)
+
+		#=====[ Step 3: get self.color_kmeans	]=====
+		self.get_color_kmeans ()
+
+		#=====[ Step 4: set colors for each square	]=====
+		self.update_square_colors ()
+
+
+
+
+
+
+
+
+
+
+
+	####################################################################################################
+	##############################[ --- SUBSEQUENT MOVES --- ]##########################################
+	####################################################################################################
+
+	def add_move (self, frame):
+		"""
+			PRIVATE: add_move
+			-----------------
+			adds a frame to the current game, assuming that a move
+			has occurred from last frame
 		"""
 		#=====[ Step 1: update frames	]=====
-		self.update_frames (new_frame)
+		self.last_frame = self.current_frame
+		self.current_frame = frame 
+		self.num_moves += 1
 
-		#=====[ Step 2: find params on first frame ]=====
-		if self.num_frames == 1:
-			self.find_BIH ()
-			self.construct_squares ()
+		#=====[ Step 2: update square image regions, color hists	]=====
+		self.update_square_image_regions (frame)
+		self.update_square_color_hists ()
 
-		#=====[ Step 3: update squares	]=====
-		for square in self.iter_squares ():
-			square.add_frame (new_frame)
-
-
-	def display_occlusion_changes (self):
-		"""
-			PUBLIC: display_occlusion_changes
-			---------------------------------
-			shows add_mat and sub_mat as heatmaps via 
-			matplotlib
-		"""
-		#=====[ BOARD TOP 3	]=====
-		self.entered_t2 = sorted([(key, value) for key, value in self.squares_entered.items ()], key=lambda x: x[1], reverse=True)[:2]
-		self.exited_t2 = sorted([(key, value) for key, value in self.squares_exited.items ()], key=lambda x: x[1], reverse=True)[:2]
-
-		disp_img = deepcopy(self.current_frame)		
-		for an, value in self.entered_t2:
-			disp_img = self.draw_square_an (an, disp_img, color=(255, 0, 0))
-		for an, value in self.exited_t2:
-			disp_img = self.draw_square_an (an, disp_img, color=(0, 0, 255))
-		cv2.imshow ('Board', disp_img)
+		#=====[ Step 3: infer move	]=====
+		# self.infer_move ()
 
 
-		#=====[ OCCLUSIONS HEATMAP	]=====
-		column_labels = list('HGFEDCBA')
-		row_labels = list('87654321')
-		fig, ax1 = plt.subplots()
-		heatmap = ax1.pcolor(self.enter_occlusions, cmap=plt.cm.Blues)
-		ax1.xaxis.tick_top()
-		ax1.set_xticks(np.arange(self.enter_occlusions.shape[0])+0.5, minor=False)
-		ax1.set_yticks(np.arange(self.enter_occlusions.shape[1])+0.5, minor=False)
-		ax1.xaxis.tick_top()
-		ax1.set_xticklabels(row_labels, minor=False)
-		ax1.set_yticklabels(column_labels, minor=False)
-		# plt.title ('Positive Increases in Occlusion by Square')
 
 
-		fig2, ax2 = plt.subplots()
-		heatmap = ax2.pcolor(self.exit_occlusions, cmap=plt.cm.Reds)
-		ax2.xaxis.tick_top()
-		ax2.set_xticks(np.arange(self.enter_occlusions.shape[0])+0.5, minor=False)
-		ax2.set_yticks(np.arange(self.enter_occlusions.shape[1])+0.5, minor=False)
-		ax2.set_xticklabels(row_labels, minor=False)
-		ax2.set_yticklabels(column_labels, minor=False)
-		plt.show ()
 
+	####################################################################################################
+	##############################[ --- INFERRING MOVES --- ]###########################################
+	####################################################################################################
 
 	def get_occlusion_changes (self):
 		"""
@@ -269,215 +396,6 @@ class Board:
 
 
 
-	####################################################################################################
-	##############################[ --- CV TASKS --- ]##################################################
-	####################################################################################################
-
-	def find_BIH (self):
-		"""
-			PRIVATE: find_BIH
-			-----------------
-			finds the board-image homography from self.current_frame, which is assumed 
-			to be the first frame
-		"""
-		assert self.corner_classifier 
-		self.BIH = CVAnalysis.find_board_image_homography (self.current_frame, self.corner_classifier)
-
-
-	def find_colors (self):
-		"""
-			PRIVATE: find_colors
-			--------------------
-			runs kmeans to get self.color_km
-		"""
-		#=====[ Step 1: get all data for kmeans	]=====
-		s_reg = [s.image_region for s in board.iter_squares ()]
-		reshaped = [s.reshape ((s.shape[0]*s.shape[1], 3)) for s in s_reg]
-		all_pixels = np.concatenate (reshaped, 0)
-
-		#=====[ Step 2: run kmeans on it	]=====
-		self.color_km = KMeans (n_clusters=4)
-		km.fit (all_pixels)
-
-
-	def fill_square_colors (self):
-		"""
-			PRIVATE: fill_square_colors
-			---------------------------
-			fills square.
-		"""
-
-
-	def construct_squares (self):
-		"""
-			PRIVATE: construct_squares
-			--------------------------
-			sets self.squares
-		"""
-		#=====[ Step 1: initialize self.squares to empty 8x8 grid	]=====
-		self.squares = [[None for i in range(8)] for j in range(8)]
-
-		#=====[ Step 2: create a square for each algebraic notation ]=====
-		for square_an in iter_algebraic_notations ():
-
-				new_square = Square (self.current_frame, self.BIH, square_an)
-				square_location = new_square.board_vertices[0]
-				self.squares [square_location[0]][square_location[1]] = new_square
-
-
-
-
-
-	####################################################################################################
-	##############################[ --- DATA MANAGEMENT --- ]###########################################
-	####################################################################################################	
-
-	def parse_occlusions (self, filename):
-		"""
-			PRIVATE: parse_occlusions
-			-------------------------
-			given a filename containing occlusions, returns it in 
-			list format 
-		"""
-		return [line.strip().split(' ') for line in open(filename, 'r').readlines ()]
-
-
-	def add_occlusions (self, filename):
-		"""
-			PUBLIC: add_occlusions
-			----------------------
-			given the name of a file containing occlusions, this will 
-			add them to each of the squares 
-		"""
-		#=====[ Step 1: parse occlusions	]=====
-		occlusions = self.parse_occlusions (filename)
-
-		#=====[ Step 2: add them one-by-one	]=====
-		for i in range(8):
-			for j in range(8):
-				self.squares [i][j].add_occlusion (occlusions[i][j])
-
-
-	def get_occlusion_features (self):
-		"""
-			PUBLIC: get_occlusions
-			----------------------
-			returns X, y
-			X: np.mat where each row is a feature vector representing a square
-			y: list of labels for X
-		"""
-		X = [s.get_occlusion_features () for s in self.iter_squares ()]
-		y = [s.occlusion for s in self.iter_squares ()]
-		return np.array (X), np.array(y)
-
-
-
-
-
-
-
-	####################################################################################################
-	##############################[ --- CONSTRUCTING FROM OBJECTS --- ]#################################
-	####################################################################################################	
-
-	def construct_from_file (self, filename):
-		"""
-			PRIVATE: construct_from_file
-			----------------------------
-			loads a previously-saved BoardImage
-		"""
-		self.load (filename)
-
-
-	def construct_from_points (self, name, image, board_points, image_points, sift_desc):
-		"""
-			PRIVATE: construct_from_points
-			------------------------------
-			fills out this BoardImage based on passed in fields 
-		"""
-		#=====[ Step 1: set name	]=====
-		if not name:
-			self.name = str(time ())
-		else:
-			self.name = name
-
-		#=====[ Step 2: set image	]=====
-		self.image = image
-
-		#=====[ Step 3: set corners	]=====
-		assert len(board_points) == len(image_points)
-		assert len(board_points) == len(sift_desc)
-		self.board_points = board_points
-		self.image_points = image_points
-		self.sift_desc = sift_desc
-
-		#=====[ Step 4: get BIH, squares ]=====
-		self.get_BIH ()
-		self.construct_squares ()
-
-
-	def construct_from_BIH (self, name, image, BIH):
-		"""
-			PRIVATE: construct_from_BIH
-			---------------------------
-			fills out this BoardImage based on a BIH, assuming the image 
-			that you computed it from came from the same chessboard, same 
-			pose 
-		"""
-		#=====[ Step 1: set name	]=====
-		if not name:
-			self.name = str(time ())
-		else:
-			self.name = name
-
-		#=====[ Step 1: set BIH/image	]=====
-		self.BIH = BIH
-		self.image = image
-
-		#=====[ Step 2: set squares	]=====
-		self.construct_squares ()
-
-		#=====[ Step 3: set everything else	]=====
-		self.board_points = None
-		self.image_points = None 
-		self.sift_desc = None
-
-
-
-	####################################################################################################
-	##############################[ --- LOADING/SAVING --- ]############################################
-	####################################################################################################	
-
-	def save (self, filename):
-		"""
-			PUBLIC: save
-			------------
-			saves this object to disk
-		"""
-		pickle.dump (	{	'name':self.name,
-							'image':self.image,
-							'board_points': self.board_points,
-							'image_points': self.image_points,
-							'sift_desc':self.sift_desc,
-						}, 
-						open(filename, 'w'))
-
-	
-	def load (self, filename):
-		"""
-			PUBLIC: load
-			------------
-			loads a past BoardImage from a file 
-		"""
-		save_file 	= open(filename, 'r')
-		saved_dict 	= pickle.load (save_file)
-		self.name 	= saved_dict['name']
-		self.image 	= saved_dict['image']
-		self.board_points = saved_dict['board_points']
-		self.image_points = saved_dict['image_points']
-		self.sift_desc = saved_dict ['sift_desc']
-		self.get_BIH ()
-		self.construct_squares ()
 
 
 
@@ -486,44 +404,10 @@ class Board:
 
 
 
-	####################################################################################################
-	##############################[ --- UTILITIES --- ]#################################################
-	####################################################################################################
-
-	def iter_squares (self):
-		""" 
-			PRIVATE: iter_squares
-			---------------------
-			iterates over all squares in this board
-		"""
-		for i in range(8):
-			for j in range(8):
-				yield self.squares [i][j]
 
 
-	def iter_squares_an (self):
-		"""
-			PRIVATE: iter_squares_an
-			------------------------
-			iterates over all Squares in self.squares
-			returns (alegebraic_notation, square)
-		"""
-		for i in range (8):
-			for j in range (8):
-				yield (self.squares[i][j].an, self.squares[i][j])
 
 
-	def iter_squares_index (self):
-		"""
-			PRIVATE: iter_squares_index
-			------------------------
-			iterates over all Squares in self.squares
-			returns (i, j, square), where i, j are indices into 
-			self.squares
-		"""
-		for i in range (8):
-			for j in range (8):
-				yield (i, j , self.squares[i][j])
 
 
 
@@ -591,6 +475,49 @@ class Board:
 		square = self.squares[board_coords[0]][board_coords[1]]
 		image = square.draw_surface (image, color)
 		return image 
+
+
+	def display_occlusion_changes (self):
+		"""
+			PUBLIC: display_occlusion_changes
+			---------------------------------
+			shows add_mat and sub_mat as heatmaps via 
+			matplotlib
+		"""
+		#=====[ BOARD TOP 3	]=====
+		self.entered_t2 = sorted([(key, value) for key, value in self.squares_entered.items ()], key=lambda x: x[1], reverse=True)[:2]
+		self.exited_t2 = sorted([(key, value) for key, value in self.squares_exited.items ()], key=lambda x: x[1], reverse=True)[:2]
+
+		disp_img = deepcopy(self.current_frame)		
+		for an, value in self.entered_t2:
+			disp_img = self.draw_square_an (an, disp_img, color=(255, 0, 0))
+		for an, value in self.exited_t2:
+			disp_img = self.draw_square_an (an, disp_img, color=(0, 0, 255))
+		cv2.imshow ('Board', disp_img)
+
+
+		#=====[ OCCLUSIONS HEATMAP	]=====
+		column_labels = list('HGFEDCBA')
+		row_labels = list('87654321')
+		fig, ax1 = plt.subplots()
+		heatmap = ax1.pcolor(self.enter_occlusions, cmap=plt.cm.Blues)
+		ax1.xaxis.tick_top()
+		ax1.set_xticks(np.arange(self.enter_occlusions.shape[0])+0.5, minor=False)
+		ax1.set_yticks(np.arange(self.enter_occlusions.shape[1])+0.5, minor=False)
+		ax1.xaxis.tick_top()
+		ax1.set_xticklabels(row_labels, minor=False)
+		ax1.set_yticklabels(column_labels, minor=False)
+		# plt.title ('Positive Increases in Occlusion by Square')
+
+
+		fig2, ax2 = plt.subplots()
+		heatmap = ax2.pcolor(self.exit_occlusions, cmap=plt.cm.Reds)
+		ax2.xaxis.tick_top()
+		ax2.set_xticks(np.arange(self.enter_occlusions.shape[0])+0.5, minor=False)
+		ax2.set_yticks(np.arange(self.enter_occlusions.shape[1])+0.5, minor=False)
+		ax2.set_xticklabels(row_labels, minor=False)
+		ax2.set_yticklabels(column_labels, minor=False)
+		plt.show ()
 
 
 

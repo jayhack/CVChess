@@ -1,4 +1,5 @@
 from copy import deepcopy
+from collections import Counter
 import numpy as np
 import cv2
 from parameters import display_parameters
@@ -40,17 +41,14 @@ class Square:
 		self.last_image_region_normalized = None
 
 		#=====[ Step 4: init contents histograms ]=====
+		self.color_hist = None
+		self.color_hist_prev = None
 		self.contents_histogram = None
 		self.last_contents_histogram = None
 
 		#=====[ Step 5: init edges	]=====
 		self.edges = None
 		self.last_edges = None
-
-		#=====[ Step 6: get initial histogram	]=====
-		self.update_image_region (image)
-		self.update_contents_histogram ()
-		self.unoccluded_histogram = self.contents_histogram
 
 
 	
@@ -69,7 +67,7 @@ class Square:
 
 
 	####################################################################################################
-	##############################[ --- INITIAL IMAGE ANALYSIS --- ]####################################
+	##############################[ --- FIND SQUARE PARAMETERS --- ]####################################
 	####################################################################################################
 
 	def get_colors (self, algebraic_notation):
@@ -103,7 +101,7 @@ class Square:
 
 
 	####################################################################################################
-	##############################[ --- UPDATING WITH FRAMES --- ]######################################
+	##############################[ --- GETTING IMAGE REGION --- ]######################################
 	####################################################################################################
 
 	def update_image_region (self, image):
@@ -145,56 +143,36 @@ class Square:
 		self.image_region_normalized = self.image_region_normalized.astype (np.uint8);
 
 
-	def update_contents_histogram (self):
+	####################################################################################################
+	##############################[ --- WORKING WITH COLOR HIST --- ]###################################
+	####################################################################################################
+
+	def get_image_region_pixels (self, image_region):
 		"""
-			PRIVATE: update_contents_histogram
-			----------------------------------
-			sets self.contents_histogram with a histogram of the colors in self.image_region,
-			also sets up self.last_contents_histogram to the previous one.
+			PRIVATE: get_image_region_pixels
+			-------------------------------
+			given an image in BGR, returns a version that is a 
+			2d numpy array of pixels
 		"""
-		self.last_contents_histogram = self.contents_histogram
+		assert image_region.shape[2] == 3
+		return image_region.reshape ((image_region.shape[0]*image_region.shape[1], 3))
 
-		#=====[ Step 1: get histograms for each	]=====
-		num_buckets = [32]
-		self.b_hist = cv2.calcHist(self.image_region_normalized, [0], None, num_buckets, [1, 256])
-		self.g_hist = cv2.calcHist(self.image_region_normalized, [1], None, num_buckets, [1, 256])
-		self.r_hist = cv2.calcHist(self.image_region_normalized, [2], None, num_buckets, [1, 256])
-		# self.b_hist = cv2.calcHist(self.image_region, [0], None, num_buckets, [1, 256])
-		# self.g_hist = cv2.calcHist(self.image_region, [1], None, num_buckets, [1, 256])
-		# self.r_hist = cv2.calcHist(self.image_region, [2], None, num_buckets, [1, 256])
-
-		#=====[ Step 3: update contents_histogram, last_contents_histogram	]=====
-		self.contents_histogram = np.concatenate ([self.b_hist, self.g_hist, self.r_hist], 0).flatten ()
-		# self.contents_histogram = cv2.calcHist (self.image_region, [])
-
-
-	def update_edges (self):
+	def update_color_hist (self, kmeans):
 		"""
-			PRIVATE: update_contents_edges
-			------------------------------
-			sets self.contents_edges as an image containing a canny
-			edge detector applied to it
+			PUBLIC: update_color_hist
+			-------------------------
+			given a kmeans predictor, this finds self.color_hist
 		"""
-		self.last_edges = self.edges
-		gray = cv2.cvtColor (self.image_region, cv2.COLOR_BGR2GRAY)
-		self.edges = cv2.Canny (gray, 50, 40)
+		#=====[ Step 1: get list of pixels in image region	]=====
+		pixels = self.get_image_region_pixels (self.image_region)
 
+		#=====[ Step 2: get labels for each pixel	]=====
+		labels = kmeans.predict (pixels)
 
-	def add_frame (self, image):
-		"""
-			PUBLIC: add_frame
-			-----------------
-			call this function to update all info about the square when a new frame 
-			arrives
-		"""
-		#=====[ Step 1: update image_region	]=====
-		self.update_image_region (image)
+		#=====[ Step 3: get a histogram out output values	]=====
+		self.color_hist_prev = self.color_hist
+		self.color_hist = Counter (labels)
 
-		#=====[ Step 2: update contents histograms	]=====
-		self.update_contents_histogram ()
-
-		#=====[ Step 3: update edges	]=====
-		self.update_edges ()
 
 
 

@@ -25,26 +25,42 @@ if __name__ == '__main__':
 	video_filename = '../data/videos/1.mov'
 	vc = cv2.VideoCapture (video_filename)
 
+
 	#=====[ Step 2: initialize the board	]=====
 	corner_classifier_filename = '../data/classifiers/corner_classifier.clf'
 	corner_classifier = pickle.load (open(corner_classifier_filename, 'r'))	#more data
 	board = Board(corner_classifier=corner_classifier)
 
-	#=====[ Step 3: get BIH from first frame ]=====
-	frame_ic = get_next_frame (vc)
-	board.add_frame (frame_ic)	
-	cv2.imwrite ('../data/videos/0.jpg', frame_ic)
+
+	#=====[ Step 3: initialize board plane ]=====
+	frame_empty = get_next_frame (vc)
+	board.initialize_board_plane (frame_empty)	
+	# cv2.imwrite ('../data/videos/0.jpg', frame_ic)
 	#####[ DEBUG: verify BIH is correct	]#####
-	# frame_ic = board.draw_vertices(frame_ic)
-	# cv2.imshow ('BIH MARKED', frame_ic)
-	# key = 0
-	# while not key in [27, ord('Q'), ord('q')]: 
-	# 	key = cv2.waitKey (30)
+	frame_ic = board.draw_vertices(frame_empty)
+	cv2.imshow ('BIH MARKED', frame_empty)
+	key = 0
+	while not key in [27, ord('Q'), ord('q')]: 
+		key = cv2.waitKey (30)
+	cv2.destroyAllWindows ()
 
 
-	add_frames = [420, 470, 516, 550, 589, 648, 709, 819, 878]
-	# add_frames = [420]
+	#=====[ Step 4: initialize game 	]=====
 	num_frames = 1
+	while (num_frames < 420):
+		frame_ic = get_next_frame (vc)
+		num_frames += 1
+	board.initialize_game (frame_ic)
+	#####[ DEBUG: display board with initial config	]#####
+	frame_ic = board.draw_vertices(frame_empty)
+	cv2.imshow ('INITIAL CONFIG', frame_empty)
+	key = 0
+	while not key in [27, ord('Q'), ord('q')]: 
+		key = cv2.waitKey (30)
+	cv2.destroyAllWindows ()
+
+
+	add_frames = [470, 516, 550, 589, 648, 709, 819, 878]
 	while True:
 		#=====[ Step 1: get/preprocess frame	]=====
 		frame = get_next_frame (vc)
