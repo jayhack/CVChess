@@ -22,12 +22,13 @@ def get_next_frame (vc):
 if __name__ == '__main__':
 
 	#=====[ Step 1: setup videocapture	]=====
-	video_filename = '../data/videos/1.mov'
+	video_filename = '../data/videos/3.mov'
 	vc = cv2.VideoCapture (video_filename)
 
 
 	#=====[ Step 2: initialize the board	]=====
-	corner_classifier_filename = '../data/classifiers/corner_classifier.clf'
+	# corner_classifier_filename = '../data/classifiers/corner_classifier.clf'
+	corner_classifier_filename = '../data/videos/3.clf'
 	corner_classifier = pickle.load (open(corner_classifier_filename, 'r'))	#more data
 	board = Board(corner_classifier=corner_classifier)
 
@@ -35,8 +36,8 @@ if __name__ == '__main__':
 	#=====[ Step 3: initialize board plane ]=====
 	frame_empty = get_next_frame (vc)
 	board.initialize_board_plane (frame_empty)	
-	# cv2.imwrite ('../data/videos/0.jpg', frame_ic)
-	#####[ DEBUG: verify BIH is correct	]#####
+	####[ DEBUG: verify BIH is correct	]#####
+	cv2.imwrite ('../data/videos/3_ic.jpg', frame_empty)
 	frame_ic = board.draw_vertices(frame_empty)
 	cv2.imshow ('BIH MARKED', frame_empty)
 	key = 0
@@ -51,36 +52,35 @@ if __name__ == '__main__':
 		frame_ic = get_next_frame (vc)
 		num_frames += 1
 	board.initialize_game (frame_ic)
-	#####[ DEBUG: display board with initial config	]#####
-	cv2.imshow ('INITIAL CONFIG', frame_ic)
-	key = 0
-	while not key in [27, ord('Q'), ord('q')]: 
-		key = cv2.waitKey (30)
-	cv2.destroyAllWindows ()
+	####[ DEBUG: display board with initial config	]#####
+	# cv2.imshow ('INITIAL CONFIG', frame_ic)
+	# key = 0
+	# while not key in [27, ord('Q'), ord('q')]: 
+	# 	key = cv2.waitKey (30)
+	# cv2.destroyAllWindows ()
 
 
-	add_frames = [470, 516, 550, 589, 648, 709, 819, 878]
+	add_frames = [470, 516, 550, 589, 648, 709, 819, 878, 932]
 	while True:
+
 		#=====[ Step 1: get/preprocess frame	]=====
 		frame = get_next_frame (vc)
 
 		#=====[ Step 2: display and wait indefinitely on key	]=====
-		print "frame #: ", num_frames
+		# print "frame #: ", num_frames
 		cv2.imshow ('FRAME', frame)
 
 		#=====[ Case: space bar -> add frame	]=====
 		if num_frames in add_frames:
 			print "===[ ADDING FRAME #" + str(num_frames) + " ]==="
-			board.add_frame (frame)
-			board.get_occlusion_changes ()
 			cv2.imwrite ('../data/videos/' + str(num_frames) +'.jpg', frame)
-			if num_frames >= 470:
-				board.update_game ()
-				board.display_occlusion_changes ()			
+
+			board.add_move (frame)
+			# board.display_movement_heatmaps ()			
 
 
 		#=====[ Case: exit -> escape	]=====
-		key = cv2.waitKey (5)
+		key = cv2.waitKey (30)
 		if key in [27, ord('Q'), ord('q')]: 
 			break
 

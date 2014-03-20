@@ -143,6 +143,9 @@ class Square:
 		self.image_region_normalized = self.image_region_normalized.astype (np.uint8);
 
 
+
+
+
 	####################################################################################################
 	##############################[ --- WORKING WITH COLOR HIST --- ]###################################
 	####################################################################################################
@@ -156,6 +159,7 @@ class Square:
 		"""
 		assert image_region.shape[2] == 3
 		return image_region.reshape ((image_region.shape[0]*image_region.shape[1], 3))
+
 
 	def update_color_hist (self, kmeans):
 		"""
@@ -173,6 +177,21 @@ class Square:
 		self.color_hist_prev = self.color_hist
 		self.color_hist = Counter (labels)
 
+
+	def get_color_hist_change (self, color_index):
+		"""
+			PUBLIC: get_color_hist_change
+			-----------------------------
+			given a color index, returns the change over the past two frames 
+		"""
+		#=====[ Step 1: get color values	]=====
+		cur, prev = self.color_hist[color_index], self.color_hist_prev[color_index]
+
+		#=====[ Step 2: get normalization constants	]=====
+		cur = float(cur) / float(sum(self.color_hist.values ()))
+		prev = float(prev) / float(sum(self.color_hist_prev.values ()))		
+
+		return cur - prev
 
 
 
@@ -255,7 +274,7 @@ class Square:
 			draws the verties of this square on the image
 		"""
 		for vertex in self.image_vertices:
-			cv2.circle (image, (int(vertex[0]), int(vertex[1])), 8, (255, 0, 0), thickness=2)
+			cv2.circle (image, (int(vertex[0]), int(vertex[1])), 4, (255, 0, 0), thickness=2)
 
 
 	def show_image_region_normalized (self):

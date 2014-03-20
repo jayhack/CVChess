@@ -1,8 +1,10 @@
 import pickle
 from time import time
 from copy import deepcopy
+from collections import Counter
 import cv2
 import numpy as np
+import scipy as sp
 import Chessnut
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
@@ -190,6 +192,34 @@ class Board:
 		self.color_kmeans.fit (all_pixels)
 
 
+	def get_piece_color_indices (self):
+		"""
+			PRIVATE: get_piece_color_indices
+			--------------------------------
+			sets self.piece_color_indices to a dict mapping {'black', 'white'}
+			to their respective indices in self.color_kmeans
+		"""
+		#=====[ Step 1: get sums of left, right sides of board	]=====
+		b_hist = Counter ({})
+		w_hist = Counter ({})
+		for i in range(8):
+			for j in range(2):
+				b_hist += self.squares[i][j].color_hist 
+		for i in range (8):
+			for j in range (6, 8):
+				w_hist += self.squares[i][j].color_hist 
+
+		#=====[ Step 2: normalize histograms ]=====
+		b_hist = np.array(list(b_hist.values())).astype(np.float)
+		b_hist = b_hist / np.sum(b_hist)
+		w_hist = np.array(list(w_hist.values())).astype(np.float)
+		w_hist = w_hist / np.sum (w_hist)
+
+		#=====[ Step 3: take differnce and construct	]=====
+		diff = b_hist - w_hist
+		self.piece_color_indices = {'black':np.argmax(diff), 'white':np.argmin(diff)}
+
+
 	def initialize_game (self, start_config_frame):
 		"""
 			PUBLIC: initialize_game
@@ -202,14 +232,16 @@ class Board:
 		self.num_moves = 0
 
 		#=====[ Step 2: get image regions for all squares	]=====
-		for square in self.iter_squares ():
-			square.update_image_region (start_config_frame)
+		self.update_square_image_regions (start_config_frame)
 
 		#=====[ Step 3: get self.color_kmeans	]=====
 		self.get_color_kmeans ()
 
 		#=====[ Step 4: set colors for each square	]=====
 		self.update_square_color_hists ()
+
+		#=====[ Step 5: get piece colors	]=====
+		self.get_piece_color_indices ()
 
 
 
@@ -241,131 +273,198 @@ class Board:
 		self.update_square_image_regions (frame)
 		self.update_square_color_hists ()
 
-		#=====[ Step 3: infer move	]=====
-		# self.infer_move ()
+		#=====[ Step 3: update movement heatmaps	]=====
+		self.update_movement_heatmaps ()
+		
+		#=====[ Step 4: infer move/update game	]=====
+		self.update_game ()
+
+
+
+
+
+
 
 
 
 
 
 	####################################################################################################
-	##############################[ --- INFERRING MOVES --- ]###########################################
+	##############################[ --- MOVEMENT HEATMAPS --- ]#########################################
 	####################################################################################################
 
-	def get_occlusion_changes (self):
+	def get_turn (self):
 		"""
-			PRIVATE: get_occlusion_changes
-			------------------------------
-			for each square, gets the probability that it is now occluded
+			PRIVATE: get_turn
+			-----------------
+			returns 'white' or 'black' corresponding to the person 
+			who just moved (i.e. result of move is in this frame)
 		"""
-		#=====[ Step 1: get add_mat, sub_mat ]=====
-		self.enter_occlusions = np.zeros ((8, 8))
-		self.exit_occlusions = np.zeros ((8, 8))
+		assert self.num_moves > 0
+		if (self.num_moves) % 2 == 1:
+			return 'white'
+		else:
+			return 'black'
+
+
+	def get_moving_piece_color_index (self):
+		"""
+			PRIVATE: get_moving_piece_color_index
+			-------------------------------------
+			returns the kmeans index of the color of the piece that 
+			just moved 
+		"""
+		return self.piece_color_indices[self.get_turn ()]
+
+
+	def update_movement_heatmaps (self):
+		"""
+			PRIVATE: update_movement_heatmaps
+			---------------------------------
+			gets self.enter_heatmap and self.exit_heatmap based on square 
+			colors
+		"""
+		#=====[ Step 1: get color of moving piece	]=====
+		piece_color_index = self.get_moving_piece_color_index ()
+
+		#=====[ Step 2: initialize matrices	]=====
+		self.enter_heatmap = np.zeros ((8, 8))
+		self.exit_heatmap = np.zeros ((8, 8))
+
+		#=====[ FILL HEATMAPS	]=====
 		for i, j, square in self.iter_squares_index ():
-			
-			(oc, ocd) = square.get_occlusion_change ()
-			if ocd == 'entered':
-				self.enter_occlusions[i, j] = oc
-			elif ocd == 'exited':
-				self.exit_occlusions[i, j] = oc
 
-		#=====[ Step 2: get a matrix of all squares and their occlusions 	]=====
-		self.squares_entered = {square.an:square.occlusion_change for square in self.iter_squares() if square.occlusion_change_direction == 'entered'}
-		self.squares_exited = {square.an:square.occlusion_change for square in self.iter_squares() if square.occlusion_change_direction == 'exited'}		
+			#=====[ Step 3: get normalized histogram change	]=====
+			color_hist_change = square.get_color_hist_change (piece_color_index)
+			if color_hist_change > 0.0:
+				self.enter_heatmap[i][j] = color_hist_change
+			else:
+				self.exit_heatmap[i][j] = abs(color_hist_change)
 
 
-	def get_enter_moves (self, square_an):
+
+
+
+
+
+
+
+	####################################################################################################
+	##############################[ --- MOVEMENT HEATMAPS -> MOVES --- ]################################
+	####################################################################################################
+
+	def place_on_heatmap (self, hm, ix, piece_height=4):
 		"""
-			PRIVATE: get_enter_moves
-			------------------------
-			given a square, gets all valid moves where the piece 
-			moves into this square 
+			PRIVATE: place_on_heatmap
+			-------------------------
+			given the index of a piece and the heatmap to place it on,
+			this updates the heatmap and returns it 
 		"""
-		suffix = square_an[0].lower() + str(square_an[1])
-		return [move for move in self.game.get_moves () if move[-2:] == suffix]
+		x_coord, y_coord = ix[0], ix[1]
+		xs = range(x_coord, 8)[:piece_height]
+		for x in xs:
+			hm[x][y_coord] = 1
+		return hm
 
 
-	def get_exit_moves (self, square_an):
+	def get_expected_heatmaps (self, move):
 		"""
-			PRIVATE: get_exit_moves
-			-----------------------
-			given a square, gets all valid moves where the piece 
-			moves out of this square
+			PRIVATE: get_expected_heatmaps
+			------------------------------
+			given a move in chessnut notation, this returns 
+			(exit_hm_exp, enter_hm_exp), corresponding to what we 
+			would expect to see 
 		"""
-		prefix = square_an[0].lower() + str(square_an[1])
-		return [move for move in self.game.get_moves () if move[:2] == prefix]
-
-
-	def add_scores (self, occ_map, ix):
-		"""
-			PRIVATE: add_scores
-			-------------------
-			given a map of occlusions (either enter or exit) and the index 
-			being moved to, this will return a score for it 
-		"""
-		#=====[ NAIVE: just score of square at ix	]=====
-		# return occ_map[ix[0], ix[1]]
-
-		#=====[ NAIVE 2: score of square at ix, as well as 2 above, normalized	]=====
-		v_ix = range(ix[0], 9)[:3]
-		return np.sum([occ_map[v_ix[i]][ix[1]] for i in range(len(v_ix))])
-
-
-	def get_move_score (self, move):
-		"""
-			PRIVATE: get_move_score
-			-----------------------
-			given a move in Chessnut move notation, returns its total score.
-		"""		
-		#=====[ Step 1: get move indices	]=====
+		#=====[ Step 1: get enter, exit square in an	]=====
 		exit_an, enter_an = split_move_notation (move)
-		enter_ix, exit_ix = an_to_index (enter_an), an_to_index (exit_an)
-		print "=====[ 	GET MOVE SCORE ]====="
-		print "move: ", move
-		print "exit_an, enter_an", exit_an, enter_an
-		print "exit_ix, enter_ix", exit_ix, enter_ix
-		print "exit occlusion: ",  self.exit_occlusions[exit_ix[0], exit_ix[1]]
-		print "enter occlusion: ",  self.enter_occlusions[enter_ix[0], enter_ix[1]]
+
+		#=====[ Step 2: get enter, exit square in ix	]=====
+		exit_ix, enter_ix = an_to_index (exit_an), an_to_index (enter_an)
+
+		#=====[ Step 3: create heatmaps	]=====
+		exit_hm_exp = np.zeros ((8,8))
+		enter_hm_exp = np.zeros ((8,8))
+		exit_hm_exp = self.place_on_heatmap (exit_hm_exp, exit_ix)
+		enter_hm_exp = self.place_on_heatmap (enter_hm_exp, enter_ix)		
+
+		return exit_hm_exp, enter_hm_exp
 
 
-		#=====[ Step 2: sum and return	]=====
-		return self.add_scores(self.enter_occlusions, enter_ix) + self.add_scores(self.exit_occlusions, exit_ix)
-		# return self.enter_occlusions[enter_ix[0], enter_ix[1]] + self.exit_occlusions[exit_ix[0], exit_ix[1]]
+	def score_move (self, move, v_obs):
+		"""
+			PRIVATE: score_move
+			-------------------
+			given a move in chessnut notation, returns a score for 
+			it based on empirical observations 
+		"""
+		#=====[ Step 1: get/normalize heatmaps	]=====
+		exit_hm_exp, enter_hm_exp = self.get_expected_heatmaps (move)
+		exit_hm_exp = exit_hm_exp.flatten() / np.sum(exit_hm_exp.flatten())
+		enter_hm_exp = enter_hm_exp.flatten() / np.sum(enter_hm_exp.flatten())		
+
+		#=====[ Step 2: convert to vector form	]=====
+		v_exp = np.concatenate([exit_hm_exp, enter_hm_exp], 0)		
+
+
+		#=====[ Step 3: compute and return dot product	]=====
+		# return np.dot (v_obs, v_exp) #screws up on second knight...
+		return sp.spatial.distance.cosine (v_obs, v_exp) # works on knight, second bishop (other one didnt...)
+
+
+
+
+	def get_observed_heatmap_vec (self):
+		"""
+			PRIVATE: get_observed_heatmap_vec
+			---------------------------------
+			returns a vector representing the observed heatmaps.
+			this involves normalization -> concatenation of self.exit_heatmap and 
+			self.enter_heatmap
+		"""
+		#=====[ Step 1: get/normalize vectors	]=====
+		exit_hm_obs = self.exit_heatmap.flatten().astype(np.float)
+		exit_hm_obs = exit_hm_obs / np.sum(exit_hm_obs)
+		enter_hm_obs = self.enter_heatmap.flatten().astype(np.float)
+		enter_hm_obs = enter_hm_obs / np.sum(enter_hm_obs)
+
+		#=====[ Step 2: concatenate and return	]=====
+		return np.concatenate ([exit_hm_obs, enter_hm_obs], 0)
 
 
 	def infer_move (self):
 		"""
 			PRIVATE: infer_move
 			-------------------
-			operates on self.enter_occlusions and self.exit_occlusions
-			in order to find the most likely move 
+			operates on self.enter_heatmap and self.exit_heatmap to infer 
+			the most likely move to have taken place. returns in Chessnut 
+			notation
 		"""
-		#=====[ Step 1: get enter, exit coordinates	]=====
-		enter_index = np.unravel_index(np.argmax(self.enter_occlusions), self.enter_occlusions.shape)
-		exit_index = np.unravel_index(np.argmax(self.exit_occlusions), self.exit_occlusions.shape)		
+		#=====[ Step 1: get all moves	]=====
+		moves = self.game.get_moves()
 
-		#=====[ Step 2: convert to algebraic notation	]=====
-		enter_an = index_to_an (enter_index)
-		exit_an = index_to_an (exit_index)
-		# print "Enter index, algebraic: ", enter_index, enter_an
-		# print "Exit index, algebraic: ", exit_index, exit_an		
+		#=====[ Step 2: get observed heatmap vector	]=====
+		v_obs = self.get_observed_heatmap_vec ()
 
-		#=====[ Step 3: get enter, exit moves	]=====
-		enter_moves = self.get_enter_moves (enter_an)
-		exit_moves = self.get_exit_moves (exit_an)
-		all_moves = list(set(enter_moves + exit_moves))
-		# print '=====[ ENTER MOVES ]====='
-		# print enter_moves
-		# print '=====[ EXIT MOVES ]====='
-		# print exit_moves
+		#=====[ Step 2: score all moves	]=====
+		scores = [self.score_move (m, v_obs) for m in moves]
 
-		#=====[ Step 4: score each	]=====
-		print "ALL MOVES: ", all_moves
-		scores = np.array([self.get_move_score (move) for move in all_moves])
-		print "ALL SCORES: ", list(scores)
-		best_index = np.argmax(scores)
-		best_move = all_moves[best_index]
-		print "BEST MOVE: ", best_move
+		#=====[ Step 3: get and return max	]=====
+		min_ix = np.argmin(scores)
+		best_move = moves[min_ix]
+		print "best move: ", best_move
+
+		#####[ DEBUG: Print out heatmaps 	]#####
+		# x_hm_exp, e_hm_exp = self.get_expected_heatmaps ('e2e4')
+		# print "=====[ EXIT_HM_OBS	]====="
+		# print np.around(self.exit_heatmap, decimals=3)
+		# print "=====[ ENTER_HM_OBS	]====="
+		# print np.around(self.enter_heatmap, decimals=3)
+		# print "=====[ EXIT_HM_EXP	]====="
+		# print x_hm_exp
+		# print "=====[ EXIT_HM_EXP	]====="
+		# print e_hm_exp
+
+
 		return best_move
 
 
@@ -379,16 +478,6 @@ class Board:
 		self.game.apply_move (self.last_move)
 
 
-
-
-	def is_valid_move (self, move):
-		"""
-			PRIVATE: is_valid_move
-			----------------------
-			given a move, returns true if it is valid on the current 
-			game state 
-		"""
-		raise NotImplementedError
 
 
 
@@ -478,44 +567,41 @@ class Board:
 		return image 
 
 
-	def display_occlusion_changes (self):
+	def display_movement_heatmaps (self):
 		"""
-			PUBLIC: display_occlusion_changes
+			PUBLIC: display_movement_heatmaps
 			---------------------------------
-			shows add_mat and sub_mat as heatmaps via 
-			matplotlib
+			shows self.enter_heatmap and self.exit_heatmap via matplotlib
 		"""
-		#=====[ BOARD TOP 3	]=====
-		self.entered_t2 = sorted([(key, value) for key, value in self.squares_entered.items ()], key=lambda x: x[1], reverse=True)[:2]
-		self.exited_t2 = sorted([(key, value) for key, value in self.squares_exited.items ()], key=lambda x: x[1], reverse=True)[:2]
-
-		disp_img = deepcopy(self.current_frame)		
-		for an, value in self.entered_t2:
-			disp_img = self.draw_square_an (an, disp_img, color=(255, 0, 0))
-		for an, value in self.exited_t2:
-			disp_img = self.draw_square_an (an, disp_img, color=(0, 0, 255))
-		cv2.imshow ('Board', disp_img)
+		# #=====[ BOARD TOP 3	]=====
+		# self.entered_t2 = sorted([(key, value) for key, value in self.squares_entered.items ()], key=lambda x: x[1], reverse=True)[:2]
+		# self.exited_t2 = sorted([(key, value) for key, value in self.squares_exited.items ()], key=lambda x: x[1], reverse=True)[:2]
+		# disp_img = deepcopy(self.current_frame)		
+		# for an, value in self.entered_t2:
+		# 	disp_img = self.draw_square_an (an, disp_img, color=(255, 0, 0))
+		# for an, value in self.exited_t2:
+		# 	disp_img = self.draw_square_an (an, disp_img, color=(0, 0, 255))
+		# cv2.imshow ('Board', disp_img)
 
 
 		#=====[ OCCLUSIONS HEATMAP	]=====
 		column_labels = list('HGFEDCBA')
 		row_labels = list('87654321')
 		fig, ax1 = plt.subplots()
-		heatmap = ax1.pcolor(self.enter_occlusions, cmap=plt.cm.Blues)
+		heatmap = ax1.pcolor(self.enter_heatmap, cmap=plt.cm.Blues)
 		ax1.xaxis.tick_top()
-		ax1.set_xticks(np.arange(self.enter_occlusions.shape[0])+0.5, minor=False)
-		ax1.set_yticks(np.arange(self.enter_occlusions.shape[1])+0.5, minor=False)
+		ax1.set_xticks(np.arange(self.enter_heatmap.shape[0])+0.5, minor=False)
+		ax1.set_yticks(np.arange(self.enter_heatmap.shape[1])+0.5, minor=False)
 		ax1.xaxis.tick_top()
 		ax1.set_xticklabels(row_labels, minor=False)
 		ax1.set_yticklabels(column_labels, minor=False)
-		# plt.title ('Positive Increases in Occlusion by Square')
-
+		# plt.title ('Positive Increases in Piece color by Square')
 
 		fig2, ax2 = plt.subplots()
-		heatmap = ax2.pcolor(self.exit_occlusions, cmap=plt.cm.Reds)
+		heatmap = ax2.pcolor(self.exit_heatmap, cmap=plt.cm.Reds)
 		ax2.xaxis.tick_top()
-		ax2.set_xticks(np.arange(self.enter_occlusions.shape[0])+0.5, minor=False)
-		ax2.set_yticks(np.arange(self.enter_occlusions.shape[1])+0.5, minor=False)
+		ax2.set_xticks(np.arange(self.exit_heatmap.shape[0])+0.5, minor=False)
+		ax2.set_yticks(np.arange(self.exit_heatmap.shape[1])+0.5, minor=False)
 		ax2.set_xticklabels(row_labels, minor=False)
 		ax2.set_yticklabels(column_labels, minor=False)
 		plt.show ()

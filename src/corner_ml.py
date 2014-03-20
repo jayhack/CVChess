@@ -23,7 +23,8 @@ if __name__ == "__main__":
 	os.chdir (data_dir)
 
 	#=====[ Step 2: load features	]=====
-	features_pos = pickle.load (open('features.mat', 'r'))
+	# features_pos = pickle.load (open('features.mat', 'r'))
+	features_pos = pickle.load (open('specialized_corners.mat', 'r'))	
 	features_neg = pickle.load (open('features_neg.mat', 'r'))
 
 	# fp_train, fp_test = features_pos[:300], features_pos[300:]
