@@ -52,8 +52,7 @@ if __name__ == '__main__':
 		num_frames += 1
 	board.initialize_game (frame_ic)
 	#####[ DEBUG: display board with initial config	]#####
-	frame_ic = board.draw_vertices(frame_empty)
-	cv2.imshow ('INITIAL CONFIG', frame_empty)
+	cv2.imshow ('INITIAL CONFIG', frame_ic)
 	key = 0
 	while not key in [27, ord('Q'), ord('q')]: 
 		key = cv2.waitKey (30)

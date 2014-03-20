@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import Chessnut
 import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
 import CVAnalysis
 from Square import Square
 from util import *
@@ -110,8 +111,8 @@ class Board:
 
 	def update_square_color_hists (self):
 		"""
-			PRIVATE: update_square_colors
-			-----------------------------
+			PRIVATE: update_square_color_hists
+			----------------------------------
 			applies self.color_kmeans to each square to get 
 			its color histogram 
 		"""
@@ -180,8 +181,8 @@ class Board:
 			runs kmeans on all square image regions to get self.color_kmeans
 		"""
 		#=====[ Step 1: get all data for kmeans	]=====
-		s_reg = [s.image_region for s in board.iter_squares ()]
-		reshaped = [s.reshape ((s.shape[0]*s.shape[1], 3)) for s in s_reg]
+		img_regs = [s.image_region for s in self.iter_squares ()]
+		reshaped = [ir.reshape ((ir.shape[0]*ir.shape[1], 3)) for ir in img_regs]
 		all_pixels = np.concatenate (reshaped, 0)
 
 		#=====[ Step 2: fit self.color_kmeans	]=====
@@ -208,7 +209,7 @@ class Board:
 		self.get_color_kmeans ()
 
 		#=====[ Step 4: set colors for each square	]=====
-		self.update_square_colors ()
+		self.update_square_color_hists ()
 
 
 
