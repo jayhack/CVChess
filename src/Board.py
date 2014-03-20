@@ -405,7 +405,6 @@ class Board:
 		#=====[ Step 2: convert to vector form	]=====
 		v_exp = np.concatenate([exit_hm_exp, enter_hm_exp], 0)		
 
-
 		#=====[ Step 3: compute and return dot product	]=====
 		# return np.dot (v_obs, v_exp) #screws up on second knight...
 		return sp.spatial.distance.cosine (v_obs, v_exp) # works on knight, second bishop (other one didnt...)
@@ -452,19 +451,6 @@ class Board:
 		min_ix = np.argmin(scores)
 		best_move = moves[min_ix]
 		print "best move: ", best_move
-
-		#####[ DEBUG: Print out heatmaps 	]#####
-		# x_hm_exp, e_hm_exp = self.get_expected_heatmaps ('e2e4')
-		# print "=====[ EXIT_HM_OBS	]====="
-		# print np.around(self.exit_heatmap, decimals=3)
-		# print "=====[ ENTER_HM_OBS	]====="
-		# print np.around(self.enter_heatmap, decimals=3)
-		# print "=====[ EXIT_HM_EXP	]====="
-		# print x_hm_exp
-		# print "=====[ EXIT_HM_EXP	]====="
-		# print e_hm_exp
-
-
 		return best_move
 
 
@@ -656,6 +642,7 @@ class Board:
 		exit_an, enter_an = split_move_notation (self.last_move)
 		frame = self.draw_square_an (exit_an, frame, color=(0, 0, 255))
 		frame = self.draw_square_an (enter_an, frame, color=(0, 255, 0))
+		cv2.putText (frame, self.last_move, (550, 220), cv2.FONT_HERSHEY_PLAIN, 4., (255, 255, 255), thickness=3)
 		return frame
 
 

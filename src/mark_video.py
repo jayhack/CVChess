@@ -1,6 +1,7 @@
 from copy import deepcopy
 import os
 import cv2
+from cv import CV_FOURCC
 import numpy as np
 import sklearn
 import pickle
@@ -24,7 +25,6 @@ if __name__ == '__main__':
 	#=====[ Step 1: setup videocapture	]=====
 	video_filename = '../data/videos/3.mov'
 	vc = cv2.VideoCapture (video_filename)
-
 
 	#=====[ Step 2: initialize the board	]=====
 	# corner_classifier_filename = '../data/classifiers/corner_classifier.clf'
@@ -50,6 +50,19 @@ if __name__ == '__main__':
 	num_frames = 1
 	while (num_frames < 507):
 		frame_ic = get_next_frame (vc)
+		if num_frames > 30 and num_frames < 100:
+			disp_frame = board.draw_vertices (frame_ic)
+		else:
+			disp_frame = deepcopy(frame_ic)
+
+		if num_frames >= 100 and num_frames < 200:
+			disp_frame = board.draw_squares (frame_ic)
+		else:
+			disp_frame = deepcopy(frame_ic)
+
+		disp_frame = cv2.resize (disp_frame, (1260, 420))
+		cv2.imshow ('FRAME', disp_frame)
+		key = cv2.waitKey(5)
 		num_frames += 1
 	board.initialize_game (frame_ic)
 	####[ DEBUG: display board with initial config	]#####
@@ -79,22 +92,18 @@ if __name__ == '__main__':
 			disp_frame = board.draw_last_move (deepcopy(frame))
 		else:
 			disp_frame = frame
+		disp_frame = cv2.resize (disp_frame, (1260, 420))
+
 		cv2.imshow ('FRAME', disp_frame)
 
 		#=====[ Case: space bar -> add frame	]=====
 		if num_frames in add_frames:
 			print "===[ ADDING FRAME #" + str(num_frames) + " ]==="
-			# cv2.imwrite ('../data/videos/' + str(num_frames) +'.jpg', frame)
 			board.add_move (frame)
-			board.display_movement_heatmaps ()			
-
-
-		######[ DEBUG: for marking pieces	]#####
-		key = cv2.waitKey (5)
-		# while key != ord('d'):
-			# key = cv2.waitKey (5)
+			# board.display_movement_heatmaps ()			
 
 		#=====[ Case: exit -> escape	]=====
+		key = cv2.waitKey (2)
 		if key in [27, ord('Q'), ord('q')]: 
 			break
 
