@@ -398,12 +398,12 @@ def find_board_image_homography (image, corner_classifier):
 	#=====[ Step 1: get chessboard corners	]=====
 	corners = get_chessboard_corners (image, corner_classifier)
 	#####[ DEBUG: DRAW CORNERS	]#####
-	corners_img = draw_points_xy (deepcopy(image), corners)
-	cv2.namedWindow ('PREDICTED CORNERS')
-	cv2.imshow ('corners', corners_img)
-	key = 0
-	while key != 27:
-		key = cv2.waitKey (30)
+	# corners_img = draw_points_xy (deepcopy(image), corners)
+	# cv2.namedWindow ('PREDICTED CORNERS')
+	# cv2.imshow ('corners', corners_img)
+	# key = 0
+	# while key != 27:
+	# 	key = cv2.waitKey (30)
 
 	
 	#=====[ Step 2: get lines (no indices yet) from corners	]=====

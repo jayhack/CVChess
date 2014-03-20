@@ -654,7 +654,8 @@ class Board:
 			draws self.last_move onto the board
 		"""
 		exit_an, enter_an = split_move_notation (self.last_move)
-		frame = self.draw_square_an (enter_an)
+		frame = self.draw_square_an (exit_an, frame, color=(0, 0, 255))
+		frame = self.draw_square_an (enter_an, frame, color=(0, 255, 0))
 		return frame
 
 

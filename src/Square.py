@@ -263,7 +263,7 @@ class Square:
 		# cv2.fillConvexPoly(image, np.array(self.image_vertices).astype(int), self.draw_color) #filled
 		iv = np.array(self.image_vertices).astype(int)
 		for i in range(len(self.image_vertices)):
-			cv2.line (image, tuple(iv[i % len(self.image_vertices)]), tuple(iv[(i+1) % len(self.image_vertices)]), color, thickness=3)
+			cv2.line (image, tuple(iv[i % len(self.image_vertices)]), tuple(iv[(i+1) % len(self.image_vertices)]), color, thickness=2)
 		return image
 
 
